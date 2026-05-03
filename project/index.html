@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>3D Tamagotchi</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <canvas id="webglcanvas" width="1920" height="1080"></canvas>
+
+  <div id="ui">
+    <button id="feedBtn">🍎 Feed</button>
+    <button id="cheerBtn">😊 Cheer</button>
+    <!-- Controls moved to dat.GUI -->
+    <div id="hud">
+      <div class="stat-row">
+        <span class="stat-label">Hunger</span>
+        <div class="progress-bar">
+          <div id="hungerBar" class="progress-fill hunger-fill"></div>
+        </div>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Mood</span>
+        <div class="progress-bar">
+          <div id="moodBar" class="progress-fill mood-fill"></div>
+        </div>
+      </div>
+      <div>Size: <span id="sizeVal">1.00</span></div>
+      <div>Time: <span id="timeVal">0.0</span>s</div>
+    </div>
+  </div>
+
+  <script src="../dat.gui.js"></script>
+  <script src="../webgl-utils.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
