@@ -779,13 +779,13 @@ let grassTexture = null;  // Grass texture (grass.jpg)
 (async function init() {
   try {
     // Load MTL file first for material colors
-    console.log("Loading MTL from: ../assets/creature.mtl");
-    const mtlText = await loadText("../assets/creature.mtl");
+    console.log("Loading MTL from: assets/creature.mtl");
+    const mtlText = await loadText("assets/creature.mtl");
     const materials = parseMTL(mtlText);
     console.log("Materials loaded:", Object.keys(materials));
 
-    console.log("Loading OBJ from: ../assets/creature.obj");
-    const objText = await loadText("../assets/creature.obj");
+    console.log("Loading OBJ from: assets/creature.obj");
+    const objText = await loadText("assets/creature.obj");
     console.log("OBJ loaded, parsing...");
     mesh = parseOBJ(objText, materials);
     console.log("OBJ parsed. Vertices:", mesh.vertCount);
@@ -802,8 +802,8 @@ let grassTexture = null;  // Grass texture (grass.jpg)
     console.log("bufPos valid:", !!bufPos, "bufNor valid:", !!bufNor, "bufCol valid:", !!bufCol);
 
     // Load grass model
-    console.log("Loading grass MTL from: ../assets/grass.mtl");
-    const grassMtlText = await loadText("../assets/grass.mtl");
+    console.log("Loading grass MTL from: assets/grass.mtl");
+    const grassMtlText = await loadText("assets/grass.mtl");
     const grassMaterials = parseMTL(grassMtlText);
     // Override grass material with green color (since texture is missing)
     for (const matName in grassMaterials) {
@@ -811,8 +811,8 @@ let grassTexture = null;  // Grass texture (grass.jpg)
     }
     console.log("Grass materials loaded:", Object.keys(grassMaterials));
 
-    console.log("Loading grass OBJ from: ../assets/grass.obj");
-    const grassObjText = await loadText("../assets/grass.obj");
+    console.log("Loading grass OBJ from: assets/grass.obj");
+    const grassObjText = await loadText("assets/grass.obj");
     grassMesh = parseOBJ(grassObjText, grassMaterials);
     console.log("Grass parsed. Vertices:", grassMesh.vertCount);
 
@@ -823,7 +823,7 @@ let grassTexture = null;  // Grass texture (grass.jpg)
     console.log("Grass buffers created");
 
     // Load grass texture
-    grassTexture = await loadTexture("../assets/grass.jpg");
+    grassTexture = await loadTexture("assets/grass.jpg");
     console.log("Grass texture loaded");
 
     // GL setup
