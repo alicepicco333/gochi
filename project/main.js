@@ -1,18 +1,3 @@
-// =============================================================================
-// 3D TAMAGOTCHI - WebGL Application
-// =============================================================================
-// This application renders a 3D creature (loaded from OBJ file) with:
-// - Vertex colors from Blender sculpt mode
-// - Mood and hunger systems that affect appearance
-// - Touch controls for rotating the scene
-// - Grass ground plane with texture
-// 
-// EXTERNAL LIBRARIES USED:
-// - dat.GUI (dat.gui.js): Provides a floating control panel for adjusting
-//   rotation and enabling auto-rotate. Used in the "dat.GUI controls" section.
-// - webgl-utils (webgl-utils.js): Helper functions for WebGL setup.
-//   Used for createProgramFromSources() and createBufferFromTypedArray().
-// =============================================================================
 
 // ---------- Matrix multiplication helper ----------
 // Multiplies two 4x4 matrices in column-major order (standard for WebGL)
@@ -70,6 +55,15 @@ const gl =
   canvas.getContext("webgl2", { antialias: true }) ||
   canvas.getContext("webgl", { antialias: true }) ||
   canvas.getContext("experimental-webgl");
+
+// Prevent browser zoom gestures (trackpad pinch / ctrl+wheel) over the app
+window.addEventListener("wheel", (e) => {
+  if (e.ctrlKey) e.preventDefault();
+}, { passive: false });
+
+window.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
+window.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
+window.addEventListener("gestureend", (e) => e.preventDefault(), { passive: false });
 
 
 
@@ -165,6 +159,16 @@ function mat4LookAt(eye, center, up) {
   return out;
 }
 
+// Transforms a 3D point by a 4x4 matrix (column-major)
+function mat4TransformPoint(m, p) {
+  const x = p[0], y = p[1], z = p[2];
+  return [
+    m[0] * x + m[4] * y + m[8] * z + m[12],
+    m[1] * x + m[5] * y + m[9] * z + m[13],
+    m[2] * x + m[6] * y + m[10] * z + m[14]
+  ];
+}
+
 // ---------- Utility Functions ----------
 function clamp01(x) { return Math.max(0, Math.min(1, x)); }  // Clamps value to 0-1 range
 function lerp(a,b,t){ return a + (b-a)*t; }  // Linear interpolation between a and b
@@ -214,14 +218,23 @@ varying vec3 vCol;
 
 uniform float uSad;      // 0..1
 uniform float uHunger;   // 0..1
+uniform vec3 uLightPos;
+uniform vec3 uLightPos2;
+uniform vec3 uLightColor;
+uniform vec3 uLightColor2;
+uniform vec3 uAmbientColor;
+uniform vec3 uFillLightColor;
 
 void main() {
   vec3 n = normalize(vN);
   
-  // Basic directional lighting
-  vec3 lightDir = normalize(vec3(0.5, 1.0, 0.5));
+  // Two point lights: sun + moon
+  vec3 lightDir = normalize(uLightPos - vPos.xyz);
+  vec3 lightDir2 = normalize(uLightPos2 - vPos.xyz);
   float diffuse = max(0.0, dot(n, lightDir));
-  float light = 0.3 + 0.7 * diffuse;
+  float diffuse2 = max(0.0, dot(n, lightDir2));
+  float fillDiffuse = max(0.0, dot(n, normalize(vec3(0.0, 1.0, 0.35))));
+  vec3 light = uAmbientColor + (uLightColor * diffuse) + (uLightColor2 * diffuse2) + (uFillLightColor * fillDiffuse);
   
   // Use vertex color from material
   vec3 col = vCol;
@@ -257,10 +270,12 @@ uniform mat4 uModel;
 
 varying vec3 vN;
 varying vec2 vUV;
+varying vec3 vWorldPos;
 
 void main() {
   vN = mat3(uModel) * aNor;
   vUV = aUV;
+  vWorldPos = (uModel * vec4(aPos, 1.0)).xyz;
   gl_Position = uMVP * vec4(aPos, 1.0);
 }
 `;
@@ -270,16 +285,27 @@ precision mediump float;
 
 varying vec3 vN;
 varying vec2 vUV;
+varying vec3 vWorldPos;
+
+uniform vec3 uLightPos;
+uniform vec3 uLightPos2;
+uniform vec3 uLightColor;
+uniform vec3 uLightColor2;
+uniform vec3 uAmbientColor;
+uniform vec3 uFillLightColor;
 
 uniform sampler2D uTexture;
 
 void main() {
   vec3 n = normalize(vN);
   
-  // Basic directional lighting
-  vec3 lightDir = normalize(vec3(0.5, 1.0, 0.5));
+  // Two point lights: sun + moon
+  vec3 lightDir = normalize(uLightPos - vWorldPos);
+  vec3 lightDir2 = normalize(uLightPos2 - vWorldPos);
   float diffuse = max(0.0, dot(n, lightDir));
-  float light = 0.4 + 0.6 * diffuse;
+  float diffuse2 = max(0.0, dot(n, lightDir2));
+  float fillDiffuse = max(0.0, dot(n, normalize(vec3(0.0, 1.0, 0.35))));
+  vec3 light = uAmbientColor + (uLightColor * diffuse) + (uLightColor2 * diffuse2) + (uFillLightColor * fillDiffuse);
   
   // Sample texture
   vec4 texColor = texture2D(uTexture, vUV);
@@ -292,6 +318,23 @@ void main() {
   gl_FragColor = vec4(col, texColor.a);
 }
 `;
+
+  // Sun shaders: emissive sphere primitive used as visible light source
+  const VS_SUN = `
+  attribute vec3 aPos;
+  uniform mat4 uMVP;
+  void main() {
+    gl_Position = uMVP * vec4(aPos, 1.0);
+  }
+  `;
+
+  const FS_SUN = `
+  precision mediump float;
+  uniform vec3 uSunColor;
+  void main() {
+    gl_FragColor = vec4(uSunColor, 1.0);
+  }
+  `;
 
 // =============================================================================
 // SHADER PROGRAM CREATION
@@ -371,6 +414,40 @@ let texProgram = null;
     return prog;
   }
   texProgram = createProg(VS_TEX, FS_TEX);
+}
+
+// Create sun shader program
+let sunProgram = null;
+{
+  function compileShader(type, src) {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+      const msg = gl.getShaderInfoLog(sh);
+      gl.deleteShader(sh);
+      console.error("Shader compile error:", msg);
+      throw new Error(msg);
+    }
+    return sh;
+  }
+  function createProg(vsSrc, fsSrc) {
+    const vs = compileShader(gl.VERTEX_SHADER, vsSrc);
+    const fs = compileShader(gl.FRAGMENT_SHADER, fsSrc);
+    const prog = gl.createProgram();
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      const msg = gl.getProgramInfoLog(prog);
+      gl.deleteProgram(prog);
+      throw new Error(msg);
+    }
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
+    return prog;
+  }
+  sunProgram = createProg(VS_SUN, FS_SUN);
 }
 
 // =============================================================================
@@ -579,6 +656,18 @@ const uMVP = gl.getUniformLocation(program, "uMVP");     // Model-View-Projectio
 const uModel = gl.getUniformLocation(program, "uModel"); // Model matrix (for lighting)
 const uSad = gl.getUniformLocation(program, "uSad");     // Sadness level 0-1
 const uHunger = gl.getUniformLocation(program, "uHunger"); // Hunger level 0-1
+const uLightPos = gl.getUniformLocation(program, "uLightPos"); // Sun light position
+const uLightPos2 = gl.getUniformLocation(program, "uLightPos2"); // Moon light position
+const uLightColor = gl.getUniformLocation(program, "uLightColor");
+const uLightColor2 = gl.getUniformLocation(program, "uLightColor2");
+const uAmbientColor = gl.getUniformLocation(program, "uAmbientColor");
+const uFillLightColor = gl.getUniformLocation(program, "uFillLightColor");
+
+const DAY_DURATION_SEC = 60.0;
+const ORBIT_RADIUS_X = 7.0;
+const ORBIT_RADIUS_Y = 5.5;
+const ORBIT_CENTER_Y = 0.2;
+const CLOCK_START_HOUR = 8.0;
 
 // =============================================================================
 // GAME STATE
@@ -594,9 +683,9 @@ const state = {
   hunger: 0.0,
   hungerInt: 0,   // integer hunger counter, increments every 5s, max 20
   nextHungerAtMs: Date.now() + 5000, // next wall-clock ms when hunger should increment
-  sad: 0.0,       // rises if you rotate too fast
-  moodLevel: 0,   // 0=Happy, 1=Meh, 2=Sad (changes every 5s)
-  nextMoodAtMs: Date.now() + 5000, // next wall-clock ms when mood changes
+  sad: 0.0,
+  moodLevel: 0,   // integer mood: 0=Happy .. 20=Sad
+  nextMoodAtMs: Date.now() + 5000, // next wall-clock ms when mood worsens
 
   // Size grows when fed
   size: 1.0,
@@ -609,10 +698,8 @@ const state = {
   // Camera position
   camX: 0,
   camY: 0,
-  camZ: 5,
+  camZ: 13.3,
 
-  // For sadness based on rotation velocity
-  rotSpeedAccum: 0, // accumulates per second
   autoRotateEnabled: false,
 };
 
@@ -717,12 +804,12 @@ feedBtn.addEventListener("click", () => {
   state.hunger = clamp01(state.hungerInt / 20);
 });
 
-// Cheer button - instantly restores mood to Happy
+// Cheer button - restores one mood step per click
 const cheerBtn = document.getElementById("cheerBtn");
 cheerBtn.addEventListener("click", () => {
-  state.moodLevel = 0; // Happy
-  state.sad = 0.0;
-  state.nextMoodAtMs = Date.now() + 5000; // Reset timer
+  state.moodLevel = Math.max(0, state.moodLevel - 1);
+  // (same 1-step-per-click as Feed)
+  state.nextMoodAtMs = Date.now() + 5000;
 });
 
 // =============================================================================
@@ -775,71 +862,103 @@ let grassMesh = null;
 let grassBufPos = null, grassBufNor = null, grassBufCol = null, grassBufUV = null;
 let grassTexture = null;  // Grass texture (grass.jpg)
 
+// Sun sphere primitive (procedurally generated)
+let sunBufPos = null;
+let sunVertCount = 0;
+let moonBufPos = null;
+let moonVertCount = 0;
+
+function createSphereMesh(radius, latBands, lonBands) {
+  const positions = [];
+
+  for (let lat = 0; lat < latBands; lat++) {
+    const t0 = (lat / latBands) * Math.PI;
+    const t1 = ((lat + 1) / latBands) * Math.PI;
+
+    for (let lon = 0; lon < lonBands; lon++) {
+      const p0 = (lon / lonBands) * Math.PI * 2;
+      const p1 = ((lon + 1) / lonBands) * Math.PI * 2;
+
+      const a = sph(radius, t0, p0);
+      const b = sph(radius, t1, p0);
+      const c = sph(radius, t1, p1);
+      const d = sph(radius, t0, p1);
+
+      positions.push(
+        a[0], a[1], a[2],
+        b[0], b[1], b[2],
+        c[0], c[1], c[2],
+        a[0], a[1], a[2],
+        c[0], c[1], c[2],
+        d[0], d[1], d[2]
+      );
+    }
+  }
+
+  return {
+    pos: new Float32Array(positions),
+    vertCount: positions.length / 3
+  };
+
+  function sph(r, theta, phi) {
+    const sinT = Math.sin(theta);
+    return [
+      r * sinT * Math.cos(phi),
+      r * Math.cos(theta),
+      r * sinT * Math.sin(phi)
+    ];
+  }
+}
+
 // Async initialization function - loads all assets and starts render loop
 (async function init() {
   try {
     // Load MTL file first for material colors
-    console.log("Loading MTL from: assets/creature.mtl");
     const mtlText = await loadText("assets/creature.mtl");
     const materials = parseMTL(mtlText);
-    console.log("Materials loaded:", Object.keys(materials));
-
-    console.log("Loading OBJ from: assets/creature.obj");
     const objText = await loadText("assets/creature.obj");
-    console.log("OBJ loaded, parsing...");
     mesh = parseOBJ(objText, materials);
-    console.log("OBJ parsed. Vertices:", mesh.vertCount);
-    console.log("mesh.pos sample:", mesh.pos.slice(0, 12));
-
-    const b = computeBounds(mesh.pos);
-    console.log("Bounds:", b);
-    window.__OBJ_BOUNDS__ = b;
+    window.__OBJ_BOUNDS__ = computeBounds(mesh.pos);
 
     bufPos = createArrayBuffer(mesh.pos);
     bufUV = createArrayBuffer(mesh.uv);
     bufNor = createArrayBuffer(mesh.nor);
     bufCol = createArrayBuffer(mesh.col);
-    console.log("bufPos valid:", !!bufPos, "bufNor valid:", !!bufNor, "bufCol valid:", !!bufCol);
 
     // Load grass model
-    console.log("Loading grass MTL from: assets/grass.mtl");
     const grassMtlText = await loadText("assets/grass.mtl");
     const grassMaterials = parseMTL(grassMtlText);
-    // Override grass material with green color (since texture is missing)
     for (const matName in grassMaterials) {
-      grassMaterials[matName].kd = [0.2, 0.6, 0.15]; // Green grass color
+      grassMaterials[matName].kd = [0.2, 0.6, 0.15];
     }
-    console.log("Grass materials loaded:", Object.keys(grassMaterials));
-
-    console.log("Loading grass OBJ from: assets/grass.obj");
     const grassObjText = await loadText("assets/grass.obj");
     grassMesh = parseOBJ(grassObjText, grassMaterials);
-    console.log("Grass parsed. Vertices:", grassMesh.vertCount);
 
     grassBufPos = createArrayBuffer(grassMesh.pos);
     grassBufNor = createArrayBuffer(grassMesh.nor);
     grassBufCol = createArrayBuffer(grassMesh.col);
     grassBufUV = createArrayBuffer(grassMesh.uv);
-    console.log("Grass buffers created");
 
-    // Load grass texture
     grassTexture = await loadTexture("assets/grass.jpg");
-    console.log("Grass texture loaded");
+
+    const sunMesh = createSphereMesh(1.0, 20, 20);
+    sunBufPos = createArrayBuffer(sunMesh.pos);
+    sunVertCount = sunMesh.vertCount;
+
+    const moonMesh = createSphereMesh(1.0, 16, 16);
+    moonBufPos = createArrayBuffer(moonMesh.pos);
+    moonVertCount = moonMesh.vertCount;
+    console.log("Moon sphere created. Vertices:", moonVertCount);
 
     // GL setup
     gl.enable(gl.DEPTH_TEST);
-    // Disable face culling to avoid hiding the mesh if winding is inconsistent
     gl.disable(gl.CULL_FACE);
-    console.log("GL state setup complete, starting render loop");
-
     requestAnimationFrame(loop);
   } catch (err) {
     console.error("Init error:", err);
     document.body.innerHTML = `<pre style="color:white; padding:12px">Error: ${String(err)}</pre>`;
   }
 })();
-
-console.log("Init function started, waiting for async load...");
 
 
 
@@ -877,10 +996,7 @@ function loop(tsMs) {
 
   // Convert timestamp to seconds
   const t = tsMs * 0.001;
-  if (!state.lastT) {
-    state.lastT = t;
-    console.log("Loop started, mesh:", mesh ? "loaded" : "not loaded");
-  }
+  if (!state.lastT) state.lastT = t;
   const dt = Math.min(0.05, Math.max(0.0001, t - state.lastT)); // clamp dt
   state.lastT = t;
   state.t = t;
@@ -909,13 +1025,16 @@ function update(dt) {
   // continuous hunger for shaders (map integer to 0..1 over 20 units)
   state.hunger = clamp01(state.hungerInt / 20);
 
-  // Mood degrades every 5 seconds (0=Happy, 1=Meh, 2=Sad)
+  // Mood worsens every 5 seconds (one step at a time, max 20)
+  const MOOD_MAX = 20;
   if (nowMs >= state.nextMoodAtMs) {
-    state.moodLevel = Math.min(2, state.moodLevel + 1);
-    state.nextMoodAtMs = nowMs + 5000;
+    const steps = Math.floor((nowMs - state.nextMoodAtMs) / 5000) + 1;
+    state.moodLevel = Math.min(MOOD_MAX, state.moodLevel + steps);
+    state.nextMoodAtMs += steps * 5000;
   }
-  // Update sad value based on mood level for shader
-  state.sad = state.moodLevel / 2.0; // 0, 0.5, or 1.0
+
+  // Shader sadness from discrete mood level
+  state.sad = state.moodLevel / MOOD_MAX;
 
   // Smooth size toward target size (time-based)
   // derive desired size from hunger (higher hunger => smaller size)
@@ -935,12 +1054,21 @@ function update(dt) {
   // Shift gradient based on hunger level (green -> yellow -> red)
   hungerBar.style.backgroundPosition = hungerPercent + '% 0';
   
-  // Mood bar: 100% when happy (moodLevel=0), 50% when meh, 0% when sad
-  const moodPercent = 100 - (state.moodLevel * 50);
+  // Mood bar: 100% happy -> 0% sad, same scale as hunger
+  const moodPercent = 100 - Math.min(100, (state.moodLevel / 20) * 100);
   moodBar.style.width = moodPercent + '%';
   
   sizeVal.textContent = state.size.toFixed(2);
-  timeVal.textContent = state.t.toFixed(1);
+  const dayPhase = (state.t % DAY_DURATION_SEC) / DAY_DURATION_SEC;
+  const clockHours = (dayPhase * 24.0 + CLOCK_START_HOUR) % 24.0;
+  const totalMinutes = Math.floor(clockHours * 60.0);
+  const hh = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+  const mm = String(totalMinutes % 60).padStart(2, '0');
+  let periodLabel = 'Night';
+  if (clockHours >= 5.0 && clockHours < 8.0) periodLabel = 'Dawn';
+  else if (clockHours >= 8.0 && clockHours < 17.0) periodLabel = 'Day';
+  else if (clockHours >= 17.0 && clockHours < 20.0) periodLabel = 'Dusk';
+  timeVal.textContent = `${hh}:${mm} ${periodLabel}`;
 
   // Auto-rotate when enabled
   if (state.autoRotateEnabled) {
@@ -955,59 +1083,12 @@ function update(dt) {
 // =============================================================================
 // Draws the scene each frame: creature + grass ground
 function render() {
-  // Clear screen with light blue sky color
-  gl.clearColor(0.53, 0.81, 0.92, 1.0);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-  // Enable depth testing (closer objects occlude farther ones)
-  gl.enable(gl.DEPTH_TEST);
-  // Disable face culling to show both sides of polygons
-  gl.disable(gl.CULL_FACE);
-
-  if (!mesh) {
-    console.log("No mesh yet");
-    return;
-  }
-
-  if (!window.__render_logged) {
-    console.log("First render call, mesh exists with", mesh.vertCount, "vertices");
-    window.__render_logged = true;
-  }
+  if (!mesh) return;
 
   // Bind attributes
-  const locPos = bindAttrib("aPos", 3, bufPos);
-  const locNor = bindAttrib("aNor", 3, bufNor);
-  const locCol = bindAttrib("aCol", 3, bufCol);
-
-  // Debug logs to help diagnose missing mesh
-  if (!window.__debug_logged) {
-    console.log('Debug: mesh.vertCount=', mesh.vertCount, 'bufPos=', !!bufPos, 'bufNor=', !!bufNor);
-    window.__debug_logged = true;
-  }
-  console.log('Attrib locations: aPos=', locPos, 'aNor=', locNor);
-  // Peek first few position values if available
-  try {
-    if (mesh && mesh.pos) {
-      console.log('pos[0..5]=', mesh.pos.slice(0,6));
-    }
-  } catch (e) {}
-  // Additional GL state checks (log once)
-  if (!window.__gl_state_logged) {
-    try {
-      gl.bindBuffer(gl.ARRAY_BUFFER, bufPos);
-      const posSize = gl.getBufferParameter(gl.ARRAY_BUFFER, gl.BUFFER_SIZE);
-      gl.bindBuffer(gl.ARRAY_BUFFER, bufNor);
-      const norSize = gl.getBufferParameter(gl.ARRAY_BUFFER, gl.BUFFER_SIZE);
-      console.log('GL buffers sizes (bytes): pos=', posSize, 'nor=', norSize);
-      if (locPos >= 0) {
-        console.log('aPos enabled=', gl.getVertexAttrib(locPos, gl.VERTEX_ATTRIB_ARRAY_ENABLED), 'buffer=', gl.getVertexAttrib(locPos, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING));
-      }
-      if (locNor >= 0) {
-        console.log('aNor enabled=', gl.getVertexAttrib(locNor, gl.VERTEX_ATTRIB_ARRAY_ENABLED), 'buffer=', gl.getVertexAttrib(locNor, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING));
-      }
-    } catch (e) { console.warn('GL debug probe failed', e); }
-    window.__gl_state_logged = true;
-  }
+  bindAttrib("aPos", 3, bufPos);
+  bindAttrib("aNor", 3, bufNor);
+  bindAttrib("aCol", 3, bufCol);
 
   // Uniforms
   gl.uniform1f(uSad, state.sad);
@@ -1020,29 +1101,76 @@ function render() {
   const camLook = [0, 0, 0];
   const camUp = [0, 1, 0];
   const viewMatrix = mat4LookAt(camEye, camLook, camUp);
-  // Debug one-time probe of transforms
-  if (!window.__render_probe_logged) {
-    try {
-      console.log('Canvas size (pixels):', canvas.width, canvas.height);
-      console.log('GL viewport:', gl.getParameter(gl.VIEWPORT));
-      console.log('Eye:', camEye);
-      const debugVP = mat4Mul(projectionMatrix, viewMatrix);
-      console.log('vp[0]=', debugVP[0], 'proj[0]=', projectionMatrix[0], 'view[0]=', viewMatrix[0]);
-    } catch (e) { console.warn('render probe failed', e); }
-    window.__render_probe_logged = true;
-  }
-
-  // Log mesh.vertCount and bounds for debug
-  if (!window.__mesh_debugged) {
-    console.log('mesh.vertCount =', mesh.vertCount);
-    if (window.__OBJ_BOUNDS__) console.log('OBJ bounds =', window.__OBJ_BOUNDS__);
-    window.__mesh_debugged = true;
-  }
 
   // --- Scene rotation from touch controls (rotates entire scene) ---
   const sceneRotY = mat4RotateY(state.rotY);
   const sceneRotX = mat4RotateX(state.rotX);
   const sceneRotation = mat4Mul(sceneRotX, sceneRotY);
+
+  // Day/night orbital motion for sun and moon (opposite each other)
+  const dayPhase = (state.t % DAY_DURATION_SEC) / DAY_DURATION_SEC;
+  const orbitAngle = dayPhase * Math.PI * 2.0 + Math.PI * 0.5;
+  const moonAngle = orbitAngle + Math.PI;
+  const sunBasePos = [
+    Math.cos(orbitAngle) * ORBIT_RADIUS_X,
+    ORBIT_CENTER_Y + Math.sin(orbitAngle) * ORBIT_RADIUS_Y,
+    2.4
+  ];
+  const moonBasePos = [
+    Math.cos(moonAngle) * ORBIT_RADIUS_X,
+    ORBIT_CENTER_Y + Math.sin(moonAngle) * ORBIT_RADIUS_Y,
+    -2.4
+  ];
+
+  const sunLightPos = mat4TransformPoint(sceneRotation, sunBasePos);
+  const moonLightPos = mat4TransformPoint(sceneRotation, moonBasePos);
+
+  // Sun elevation drives day-night transition
+  const dayFactor = clamp01((sunBasePos[1] + ORBIT_RADIUS_Y * 0.15) / (ORBIT_RADIUS_Y * 1.15));
+  const nightFactor = 1.0 - dayFactor;
+
+  // Sky darkens at night
+  const daySky = [0.44, 0.62, 0.86];
+  const nightSky = [0.04, 0.06, 0.12];
+  const skyR = lerp(nightSky[0], daySky[0], dayFactor);
+  const skyG = lerp(nightSky[1], daySky[1], dayFactor);
+  const skyB = lerp(nightSky[2], daySky[2], dayFactor);
+  gl.clearColor(skyR, skyG, skyB, 1.0);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  // Enable depth testing (closer objects occlude farther ones)
+  gl.enable(gl.DEPTH_TEST);
+  // Disable face culling to show both sides of polygons
+  gl.disable(gl.CULL_FACE);
+
+  // Two dynamic lights: warm sun + cool moon
+  const sunLightColor = [
+    1.05 * dayFactor,
+    0.95 * dayFactor,
+    0.78 * dayFactor
+  ];
+  const moonLightColor = [
+    0.24 * nightFactor,
+    0.34 * nightFactor,
+    0.54 * nightFactor
+  ];
+  const ambientColor = [
+    lerp(0.06, 0.22, dayFactor),
+    lerp(0.07, 0.24, dayFactor),
+    lerp(0.10, 0.28, dayFactor)
+  ];
+  const fillLightColor = [
+    lerp(0.20, 0.06, dayFactor),
+    lerp(0.24, 0.07, dayFactor),
+    lerp(0.32, 0.10, dayFactor)
+  ];
+
+  if (uLightPos) gl.uniform3fv(uLightPos, sunLightPos);
+  if (uLightPos2) gl.uniform3fv(uLightPos2, moonLightPos);
+  if (uLightColor) gl.uniform3fv(uLightColor, sunLightColor);
+  if (uLightColor2) gl.uniform3fv(uLightColor2, moonLightColor);
+  if (uAmbientColor) gl.uniform3fv(uAmbientColor, ambientColor);
+  if (uFillLightColor) gl.uniform3fv(uFillLightColor, fillLightColor);
 
   // Build view-projection with scene rotation applied
   const viewProjection = mat4Mul(projectionMatrix, viewMatrix);
@@ -1108,7 +1236,7 @@ function render() {
     // 1. Scale down to fit scene
     // 2. Rotate -90 deg around X to lay flat in XZ plane
     // 3. Position at planeY
-    const grassScale = 0.08; // Scale factor - large to fill bottom of scene
+    const grassScale = 0.04; // Smaller plane so sun/moon motion reads clearly above horizon
     const scaleM = mat4Scale(grassScale, grassScale, grassScale);
     const rotX90 = mat4RotateX(-Math.PI / 2); // Rotate to XZ plane
     const translateM = mat4Translate(0, planeY, 0);
@@ -1119,9 +1247,21 @@ function render() {
     const texUMVP = gl.getUniformLocation(texProgram, "uMVP");
     const texUModel = gl.getUniformLocation(texProgram, "uModel");
     const texUTexture = gl.getUniformLocation(texProgram, "uTexture");
+    const texULightPos = gl.getUniformLocation(texProgram, "uLightPos");
+    const texULightPos2 = gl.getUniformLocation(texProgram, "uLightPos2");
+    const texULightColor = gl.getUniformLocation(texProgram, "uLightColor");
+    const texULightColor2 = gl.getUniformLocation(texProgram, "uLightColor2");
+    const texUAmbientColor = gl.getUniformLocation(texProgram, "uAmbientColor");
+    const texUFillLightColor = gl.getUniformLocation(texProgram, "uFillLightColor");
     
     gl.uniformMatrix4fv(texUModel, false, mat4Mul(sceneRotation, grassModel));
     gl.uniformMatrix4fv(texUMVP, false, grassMVP);
+    if (texULightPos) gl.uniform3fv(texULightPos, sunLightPos);
+    if (texULightPos2) gl.uniform3fv(texULightPos2, moonLightPos);
+    if (texULightColor) gl.uniform3fv(texULightColor, sunLightColor);
+    if (texULightColor2) gl.uniform3fv(texULightColor2, moonLightColor);
+    if (texUAmbientColor) gl.uniform3fv(texUAmbientColor, ambientColor);
+    if (texUFillLightColor) gl.uniform3fv(texUFillLightColor, fillLightColor);
     
     // Bind texture
     gl.activeTexture(gl.TEXTURE0);
@@ -1131,6 +1271,58 @@ function render() {
     gl.drawArrays(gl.TRIANGLES, 0, grassMesh.vertCount);
     
     // Switch back to main shader
+    gl.useProgram(program);
+  }
+
+  // --- Draw visible sun sphere primitive ---
+  if (sunProgram && sunBufPos && sunVertCount > 0) {
+    gl.useProgram(sunProgram);
+
+    const sunScale = 0.35;
+    const sunModel = mat4Mul(
+      mat4Translate(sunBasePos[0], sunBasePos[1], sunBasePos[2]),
+      mat4Scale(sunScale, sunScale, sunScale)
+    );
+    const sunMVP = mat4Mul(rotatedVP, sunModel);
+
+    const sunPosLoc = gl.getAttribLocation(sunProgram, "aPos");
+    gl.bindBuffer(gl.ARRAY_BUFFER, sunBufPos);
+    gl.enableVertexAttribArray(sunPosLoc);
+    gl.vertexAttribPointer(sunPosLoc, 3, gl.FLOAT, false, 0, 0);
+
+    const sunUMVP = gl.getUniformLocation(sunProgram, "uMVP");
+    const sunUColor = gl.getUniformLocation(sunProgram, "uSunColor");
+    gl.uniformMatrix4fv(sunUMVP, false, sunMVP);
+    gl.uniform3f(
+      sunUColor,
+      lerp(0.55, 1.0, dayFactor),
+      lerp(0.55, 0.92, dayFactor),
+      lerp(0.65, 0.52, dayFactor)
+    );
+
+    gl.drawArrays(gl.TRIANGLES, 0, sunVertCount);
+
+    // Draw moon sphere with the same shader
+    if (moonBufPos && moonVertCount > 0) {
+      const moonScale = 0.28;
+      const moonModel = mat4Mul(
+        mat4Translate(moonBasePos[0], moonBasePos[1], moonBasePos[2]),
+        mat4Scale(moonScale, moonScale, moonScale)
+      );
+      const moonMVP = mat4Mul(rotatedVP, moonModel);
+      gl.bindBuffer(gl.ARRAY_BUFFER, moonBufPos);
+      gl.vertexAttribPointer(sunPosLoc, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(sunUMVP, false, moonMVP);
+      gl.uniform3f(
+        sunUColor,
+        lerp(0.65, 0.25, dayFactor),
+        lerp(0.70, 0.32, dayFactor),
+        lerp(0.82, 0.45, dayFactor)
+      );
+      gl.drawArrays(gl.TRIANGLES, 0, moonVertCount);
+    }
+
+    // Restore main shader for next frame start
     gl.useProgram(program);
   }
 
