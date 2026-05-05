@@ -1,53 +1,51 @@
 
-// ---------- Helper per la moltiplicazione di matrici ----------
-// Moltiplica due matrici 4x4 in ordine column-major (standard per WebGL)
-function mat4Mul(a, b) {
-  // Moltiplica due matrici 4x4 (column-major)
-  const out = new Float32Array(16);
-  for (let col = 0; col < 4; ++col) {
-    for (let row = 0; row < 4; ++row) {
-      let sum = 0.0;
-      for (let k = 0; k < 4; ++k) {
-        sum += a[row + k*4] * b[k + col*4];
-      }
-      out[row + col*4] = sum;
-    }
-  }
-  return out;
+(() => {
+// ---------- Wrapper matrici/vettori → m4.js (Gregg Tavares' webgl-3d-math) ----------
+// Le funzioni custom sono sostituite con le equivalenti della libreria m4.js
+// che espone tutto sotto l'oggetto globale `m4`.
+
+// Moltiplicazione matrici 4x4  (m4.multiply)
+const mat4Mul      = (a, b)           => m4.multiply(a, b);
+// Matrice identità 4x4  (m4.identity)
+const mat4Identity = ()               => m4.identity();
+// Matrice di traslazione  (m4.translation)
+const mat4Translate = (tx, ty, tz)    => m4.translation(tx, ty, tz);
+// Matrice di scala  (m4.scaling)
+const mat4Scale    = (sx, sy, sz)     => m4.scaling(sx, sy, sz);
+// Rotazione attorno all'asse Y  (m4.yRotation)
+const mat4RotateY  = (rad)            => m4.yRotation(rad);
+// Rotazione attorno all'asse X  (m4.xRotation)
+const mat4RotateX  = (rad)            => m4.xRotation(rad);
+// Matrice di proiezione prospettica  (m4.perspective)
+const mat4Perspective = (fovy, aspect, near, far) => m4.perspective(fovy, aspect, near, far);
+// Trasforma un punto 3D con una matrice 4x4  (m4.transformPoint)
+const mat4TransformPoint = (mat, p)   => m4.transformPoint(mat, p);
+
+// Normalizzazione vettore 3D  (m4.normalize)
+const vec3Normalize = (v)             => m4.normalize(v);
+// Prodotto vettoriale  (m4.cross)
+const vec3Cross     = (a, b)          => m4.cross(a, b);
+// Sottrazione vettoriale  (m4.subtractVectors)
+const vec3Sub       = (a, b)          => m4.subtractVectors(a, b);
+
+// Matrice vista (view matrix)
+// m4.lookAt restituisce la matrice camera; l'inversa è la matrice vista usata da WebGL
+function mat4LookAt(eye, center, up) {
+  return m4.inverse(m4.lookAt(eye, center, up));
 }
-// ---------- Helper per la matrice identità ----------
-// Restituisce una matrice identità 4x4 (nessuna trasformazione)
-function mat4Identity() {
-  return new Float32Array([
-    1,0,0,0,
-    0,1,0,0,
-    0,0,1,0,
-    0,0,0,1
-  ]);
-}
-// ---------- Helper per il ridimensionamento del canvas ----------
-// Ridimensiona il canvas per adattarsi allo schermo, tenendo conto del device pixel ratio
-// Garantisce un rendering nitido su display ad alta densità (Retina, ecc.)
-function resizeCanvasToDisplaySize() {
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const w = Math.floor(canvas.clientWidth * dpr);
-  const h = Math.floor(canvas.clientHeight * dpr);
-  if (canvas.width !== w || canvas.height !== h) {
-    canvas.width = w;
-    canvas.height = h;
-    gl.viewport(0, 0, w, h);
-  }
-}
+
 // ====== Tamagotchi WebGL minimale (senza librerie) ======
 
 // ====== Riferimenti agli elementi del DOM ======
-// Recupera i riferimenti agli elementi HTML per l'interfaccia
-const canvas = document.getElementById("webglcanvas");
-const feedBtn = document.getElementById("feedBtn");
-const hungerBar = document.getElementById("hungerBar");  // Elemento barra di avanzamento
-const moodBar = document.getElementById("moodBar");      // Elemento barra di avanzamento
-const sizeVal = document.getElementById("sizeVal");
-const timeVal = document.getElementById("timeVal");
+// >>> USO JQUERY: $() seleziona elementi per ID; [0] estrae l'elemento DOM nativo
+// (necessario per le API canvas/WebGL che richiedono l'oggetto DOM reale)
+const canvas   = $('#webglcanvas')[0];
+const feedBtn  = $('#feedBtn')[0];
+const hungerBar = $('#hungerBar')[0];  // Elemento barra di avanzamento
+const moodBar  = $('#moodBar')[0];     // Elemento barra di avanzamento
+const sizeVal  = $('#sizeVal')[0];
+const timeVal  = $('#timeVal')[0];
+const loadingOverlay = $('#loadingOverlay')[0];
 
 // ====== Contesto WebGL ======
 // Tenta prima WebGL2, poi fallback a WebGL1 per maggiore compatibilità
@@ -57,117 +55,25 @@ const gl =
   canvas.getContext("experimental-webgl");
 
 // Impedisce i gesti di zoom del browser (pizzico trackpad / ctrl+rotella) sull'app
-window.addEventListener("wheel", (e) => {
-  if (e.ctrlKey) e.preventDefault();
-}, { passive: false });
-
-window.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
-window.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
-window.addEventListener("gestureend", (e) => e.preventDefault(), { passive: false });
-
-
-
-// ---------- Funzioni di trasformazione matriciale ----------
-// Queste funzioni creano matrici di trasformazione 4x4 per la grafica 3D
-
-// Crea una matrice di traslazione (sposta oggetti nello spazio 3D)
-function mat4Translate(tx, ty, tz) {
-  const m = mat4Identity();
-  m[12] = tx; m[13] = ty; m[14] = tz;
-  return m;
+// Usa listener nativi in capture + passive:false per poter bloccare il default in modo affidabile.
+function blockBrowserZoom(e) {
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+  }
 }
 
-// Crea una matrice di scala (ridimensiona oggetti)
-function mat4Scale(sx, sy, sz) {
-  const m = mat4Identity();
-  m[0] = sx; m[5] = sy; m[10] = sz;
-  return m;
+window.addEventListener('wheel', blockBrowserZoom, { passive: false, capture: true });
+document.addEventListener('wheel', blockBrowserZoom, { passive: false, capture: true });
+
+function blockGestureZoom(e) {
+  e.preventDefault();
 }
 
-// Crea una matrice di rotazione attorno all'asse Y (rotazione sinistra/destra)
-function mat4RotateY(rad) {
-  const c = Math.cos(rad), s = Math.sin(rad);
-  return new Float32Array([
-     c,0,-s,0,
-     0,1, 0,0,
-     s,0, c,0,
-     0,0, 0,1
-  ]);
-}
+window.addEventListener('gesturestart', blockGestureZoom, { passive: false, capture: true });
+window.addEventListener('gesturechange', blockGestureZoom, { passive: false, capture: true });
+window.addEventListener('gestureend', blockGestureZoom, { passive: false, capture: true });
 
-// Crea una matrice di rotazione attorno all'asse X (inclinazione su/giù)
-function mat4RotateX(rad) {
-  const c = Math.cos(rad), s = Math.sin(rad);
-  return new Float32Array([
-    1,0, 0,0,
-    0,c, s,0,
-    0,-s,c,0,
-    0,0, 0,1
-  ]);
-}
 
-// Crea una matrice di proiezione prospettica (effetto profondità 3D)
-// fovy: campo visivo in radianti, aspect: rapporto larghezza/altezza
-function mat4Perspective(fovy, aspect, near, far) {
-  const f = 1.0 / Math.tan(fovy / 2);
-  const nf = 1 / (near - far);
-  const out = new Float32Array(16);
-  out[0] = f / aspect;
-  out[5] = f;
-  out[10] = (far + near) * nf;
-  out[11] = -1;
-  out[14] = (2 * far * near) * nf;
-  return out;
-}
-
-// ---------- Funzioni matematiche vettoriali ----------
-// Usate per i calcoli della camera "look at"
-
-// Normalizza un vettore 3D a lunghezza unitaria
-function vec3Normalize(v) {
-  const len = Math.hypot(v[0], v[1], v[2]) || 1;
-  return [v[0]/len, v[1]/len, v[2]/len];
-}
-
-function vec3Cross(a, b) {
-  return [
-    a[1]*b[2] - a[2]*b[1],
-    a[2]*b[0] - a[0]*b[2],
-    a[0]*b[1] - a[1]*b[0]
-  ];
-}
-
-function vec3Sub(a, b) {
-  return [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
-}
-
-// Crea una matrice vista con la camera in 'eye' puntata verso 'center'
-function mat4LookAt(eye, center, up) {
-  const f = vec3Normalize(vec3Sub(center, eye));
-  const s = vec3Normalize(vec3Cross(f, up));
-  const u = vec3Cross(s, f);
-
-  const out = mat4Identity();
-  out[0] = s[0]; out[4] = s[1]; out[8]  = s[2];
-  out[1] = u[0]; out[5] = u[1]; out[9]  = u[2];
-  out[2] = -f[0];out[6] = -f[1];out[10] = -f[2];
-
-  out[12] = -(s[0]*eye[0] + s[1]*eye[1] + s[2]*eye[2]);
-  out[13] = -(u[0]*eye[0] + u[1]*eye[1] + u[2]*eye[2]);
-  out[14] =  (f[0]*eye[0] + f[1]*eye[1] + f[2]*eye[2]);  // prodotto scalare(f, eye), senza negazione
-
-  return out;
-}
-
-// Trasforma un punto 3D con una matrice 4x4 (column-major)
-function mat4TransformPoint(m, p) {
-  const x = p[0], y = p[1], z = p[2];
-  return [
-    m[0] * x + m[4] * y + m[8] * z + m[12],
-    m[1] * x + m[5] * y + m[9] * z + m[13],
-    m[2] * x + m[6] * y + m[10] * z + m[14]
-  ];
-}
 
 // ---------- Funzioni di utilità ----------
 function clamp01(x) { return Math.max(0, Math.min(1, x)); }  // Limita il valore all'intervallo 0-1
@@ -240,25 +146,22 @@ void main() {
   vec3 col = vCol;
   col *= light;
   
-  // Effetti umore: triste => più freddo/scuro, fame => più rossastro
-  vec3 sadTint = mix(vec3(1.0), vec3(0.75, 0.85, 1.15), uSad);
+  // Effetti umore: triste => più spento/grigio, fame => più rossastro
+  vec3 sadTint = mix(vec3(1.0), vec3(0.30, 0.3, 0.30), uSad);
   vec3 hungerTint = mix(vec3(1.0), vec3(2.4, 0.7, 0.7), uHunger);
   
   col *= sadTint;
   col *= hungerTint;
   
-  // Se molto triste, aggiunge leggera desaturazione
-  float gray = dot(col, vec3(0.299, 0.587, 0.114));
-  col = mix(col, vec3(gray), uSad * 0.35);
   
   gl_FragColor = vec4(col, 1.0);
 }
 `;
 
 // =============================================================================
-// SHADER CON TEXTURE - Usati per il piano dell'erba
+// SHADER CON TEXTURE - Usati per il piano dell'erba e pianeta
 // =============================================================================
-// Coppia di shader separata per il rendering di oggetti texturizzati (erba)
+// Coppia di shader separata per il rendering di oggetti texturizzati
 // Usa coordinate UV e campiona da una texture invece dei colori vertice
 const VS_TEX = `
 attribute vec3 aPos;
@@ -339,176 +242,92 @@ void main() {
 // =============================================================================
 // CREAZIONE DEI PROGRAMMI SHADER
 // =============================================================================
-// USO WEBGL-UTILS: Se webgl-utils.js è caricato, usa createProgramFromSources()
-// Questa funzione helper compila i vertex e fragment shader e li collega.
-// Fallback alla compilazione manuale se webgl-utils non è disponibile.
+// USO WEBGL-UTILS: createProgramFromSources() compila e collega gli shader.
 // =============================================================================
-let program = null;
-if (window.webglUtils && webglUtils.createProgramFromSources) {
-  // >>> WEBGL-UTILS: createProgramFromSources(gl, [vertexShaderSource, fragmentShaderSource])
-  // Compila entrambi gli shader e li collega in un programma in un'unica chiamata
-  program = webglUtils.createProgramFromSources(gl, [VS, FS]);
-  if (!program) throw new Error('Failed to create program via webglUtils');
-} else {
-  function compileShader(type, src) {
-    const sh = gl.createShader(type);
-    gl.shaderSource(sh, src);
-    gl.compileShader(sh);
-    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-      const msg = gl.getShaderInfoLog(sh);
-      gl.deleteShader(sh);
-      console.error("Shader compile error:", msg);
-      throw new Error(msg);
-    }
-    return sh;
-  }
-  function createProgram(vsSrc, fsSrc) {
-    const vs = compileShader(gl.VERTEX_SHADER, vsSrc);
-    const fs = compileShader(gl.FRAGMENT_SHADER, fsSrc);
-    const prog = gl.createProgram();
-    gl.attachShader(prog, vs);
-    gl.attachShader(prog, fs);
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      const msg = gl.getProgramInfoLog(prog);
-      gl.deleteProgram(prog);
-      throw new Error(msg);
-    }
-    gl.deleteShader(vs);
-    gl.deleteShader(fs);
-    return prog;
-  }
-  program = createProgram(VS, FS);
-}
+let program = webglUtils.createProgramFromSources(gl, [VS, FS]);
+if (!program) throw new Error('Failed to create program via webglUtils');
 gl.useProgram(program);
 
 // Crea il programma shader con texture
-let texProgram = null;
-{
-  function compileShader(type, src) {
-    const sh = gl.createShader(type);
-    gl.shaderSource(sh, src);
-    gl.compileShader(sh);
-    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-      const msg = gl.getShaderInfoLog(sh);
-      gl.deleteShader(sh);
-      console.error("Shader compile error:", msg);
-      throw new Error(msg);
-    }
-    return sh;
-  }
-  function createProg(vsSrc, fsSrc) {
-    const vs = compileShader(gl.VERTEX_SHADER, vsSrc);
-    const fs = compileShader(gl.FRAGMENT_SHADER, fsSrc);
-    const prog = gl.createProgram();
-    gl.attachShader(prog, vs);
-    gl.attachShader(prog, fs);
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      const msg = gl.getProgramInfoLog(prog);
-      gl.deleteProgram(prog);
-      throw new Error(msg);
-    }
-    gl.deleteShader(vs);
-    gl.deleteShader(fs);
-    return prog;
-  }
-  texProgram = createProg(VS_TEX, FS_TEX);
-}
+// >>> WEBGL-UTILS: createProgramFromSources(gl, [vertexShaderSource, fragmentShaderSource])
+let texProgram = webglUtils.createProgramFromSources(gl, [VS_TEX, FS_TEX]);
+if (!texProgram) throw new Error('Failed to create texProgram via webglUtils');
 
 // Crea il programma shader del sole
-let sunProgram = null;
-{
-  function compileShader(type, src) {
-    const sh = gl.createShader(type);
-    gl.shaderSource(sh, src);
-    gl.compileShader(sh);
-    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-      const msg = gl.getShaderInfoLog(sh);
-      gl.deleteShader(sh);
-      console.error("Shader compile error:", msg);
-      throw new Error(msg);
-    }
-    return sh;
+// >>> WEBGL-UTILS: createProgramFromSources(gl, [vertexShaderSource, fragmentShaderSource])
+let sunProgram = webglUtils.createProgramFromSources(gl, [VS_SUN, FS_SUN]);
+if (!sunProgram) throw new Error('Failed to create sunProgram via webglUtils');
+
+//loading 
+
+const TOTAL_ASSETS = 4; // 2 OBJ + 2 texture
+let loadedAssets = 0;
+let initCoreReady = false;
+let appStarted = false;
+let loadFailed = false;
+
+function markAssetLoaded() {
+  loadedAssets = Math.min(TOTAL_ASSETS, loadedAssets + 1);
+  tryStartApp();
+}
+
+function failLoading(reason) {
+  loadFailed = true;
+  console.error("Errore caricamento asset:", reason);
+}
+
+function tryStartApp() {
+  if (appStarted || loadFailed) return;
+  if (!initCoreReady) return;
+  if (loadedAssets < TOTAL_ASSETS) return;
+
+  appStarted = true;
+  if (loadingOverlay) {
+    loadingOverlay.style.display = 'none';
   }
-  function createProg(vsSrc, fsSrc) {
-    const vs = compileShader(gl.VERTEX_SHADER, vsSrc);
-    const fs = compileShader(gl.FRAGMENT_SHADER, fsSrc);
-    const prog = gl.createProgram();
-    gl.attachShader(prog, vs);
-    gl.attachShader(prog, fs);
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      const msg = gl.getProgramInfoLog(prog);
-      gl.deleteProgram(prog);
-      throw new Error(msg);
-    }
-    gl.deleteShader(vs);
-    gl.deleteShader(fs);
-    return prog;
-  }
-  sunProgram = createProg(VS_SUN, FS_SUN);
+
+  gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.CULL_FACE);
+  requestAnimationFrame(loop);
 }
 
 // =============================================================================
-// HELPER PER IL CARICAMENTO TEXTURE
+//   TEXTURE
 // =============================================================================
-// Carica un'immagine e crea una texture WebGL da essa
-// Restituisce una Promise che si risolve con l'oggetto texture
+// Carica un'immagine in una texture WebGL usando createTexture 
 function loadTexture(url) {
-  return new Promise((resolve, reject) => {
-    const texture = gl.createTexture();
-    const image = new Image();
-    image.onload = () => {
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.generateMipmap(gl.TEXTURE_2D);
-      console.log("Texture loaded:", url, image.width, "x", image.height);
-      resolve(texture);
-    };
-    image.onerror = () => reject(new Error("Failed to load texture: " + url));
-    image.src = url;
-  });
+  const texture = gl.createTexture();
+
+  const image = new Image();
+  image.onload = () => {
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    console.log("Texture loaded:", url, image.width, "x", image.height);
+    markAssetLoaded();
+  };
+  image.onerror = () => {
+    console.error("Failed to load texture:", url);
+    failLoading(url);
+  };
+  image.src = url;
+  return texture;
 }
 
 // =============================================================================
-// CARICATORI FILE OBJ/MTL
+// CARICATORI FILE OBj
 // =============================================================================
-// Queste funzioni analizzano i file OBJ e MTL Wavefront esportati da Blender
+// Queste funzioni analizzano i file OBJ Wavefront esportati da Blender
 
 // Recupera un file di testo da URL
 async function loadText(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to load: ${url}`);
   return await res.text();
-}
-
-// Analizza il file MTL (Materiale) per estrarre i colori diffusi (Kd) per ogni materiale
-// Restituisce un oggetto che mappa i nomi dei materiali alle loro proprietà
-function parseMTL(mtlText) {
-  const materials = {};
-  let currentMat = null;
-
-  const lines = mtlText.split("\n");
-  for (let line of lines) {
-    line = line.trim();
-    if (!line || line.startsWith("#")) continue;
-
-    const parts = line.split(/\s+/);
-    const tag = parts[0];
-
-    if (tag === "newmtl") {
-      currentMat = parts[1];
-      materials[currentMat] = { kd: [0.8, 0.8, 0.8] }; // grigio predefinito
-    } else if (tag === "Kd" && currentMat) {
-      materials[currentMat].kd = [+parts[1], +parts[2], +parts[3]];
-    }
-  }
-  return materials;
 }
 
 // =============================================================================
@@ -518,99 +337,75 @@ function parseMTL(mtlText) {
 // Supporta: v (vertici con colori opzionali), vt (UV), vn (normali), f (facce)
 // Gestisce anche usemtl per il cambio materiale
 // Restituisce: { pos, uv, nor, col, vertCount } - tutti come Float32Arrays
-function parseOBJ(objText, materials = {}) {
-  const positions = [];  // Ogni voce: [x, y, z]
-  const vertColors = []; // Ogni voce: [r, g, b] o null se assenza colore vertice
-  const uvs = [];
-  const normals = [];
+function parseOBJ(objText) {
+  const positions = [];   // Lista di posizioni vertice: [x, y, z]
+  const vertColors = [];  // Lista di colori vertice opzionali: [r, g, b] o null
+  const uvs = [];         // Lista di coordinate texture: [u, v]
+  const normals = [];     // Lista di normali: [x, y, z]
 
-  const outPos = [];
-  const outUV = [];
-  const outNor = [];
-  const outCol = [];
+  // Array di output: verranno convertiti in Float32Array alla fine
+  const outPos = [], outUV = [], outNor = [], outCol = [];
 
-  // Colore materiale predefinito (grigio)
-  let currentColor = [0.8, 0.8, 0.8];
+  for (let line of objText.split("\n")) {
+    line = line.trim();                                    // Rimuove spazi iniziali/finali
+    if (!line || line.startsWith("#")) continue;           // Salta righe vuote e commenti
+    const tokens = line.split(/\s+/);                     // Divide la riga in token separati da spazi
 
-  const lines = objText.split("\n");
-  for (let line of lines) {
-    line = line.trim();
-    if (!line || line.startsWith("#")) continue;
-
-    const parts = line.split(/\s+/);
-    const tag = parts[0];
-
-    if (tag === "v") {
-      positions.push([+parts[1], +parts[2], +parts[3]]);
-      // Controlla la presenza di colori vertice (v x y z r g b)
-      if (parts.length >= 7) {
-        vertColors.push([+parts[4], +parts[5], +parts[6]]);
-      } else {
-        vertColors.push(null); // Nessun colore vertice per questo vertice
-      }
-    } else if (tag === "vt") {
-      uvs.push([+parts[1], +parts[2]]);
-    } else if (tag === "vn") {
-      normals.push([+parts[1], +parts[2], +parts[3]]);
-    } else if (tag === "usemtl") {
-      const matName = parts[1];
-      if (materials[matName]) {
-        currentColor = materials[matName].kd;
-      } else {
-        currentColor = [0.8, 0.8, 0.8];
-      }
-    } else if (tag === "f") {
+    if (tokens[0] === "v") {
+      // Vertice: legge le coordinate x, y, z (obbligatorie)
+      positions.push([+tokens[1], +tokens[2], +tokens[3]]);
+      // Colore vertice opzionale: presente se ci sono almeno 7 token (v x y z r g b)
+      vertColors.push(tokens.length >= 7 ? [+tokens[4], +tokens[5], +tokens[6]] : null);
+    } else if (tokens[0] === "vt") {
+      // Coordinata texture: legge u, v
+      uvs.push([+tokens[1], +tokens[2]]);
+    } else if (tokens[0] === "vn") {
+      // Normale: legge x, y, z
+      normals.push([+tokens[1], +tokens[2], +tokens[3]]);
+    } else if (tokens[0] === "f") {
+      // Faccia: ogni token dopo "f" è un vertice nel formato posizione/uv/normale
       // triangolazione a ventaglio: f a b c d => (a b c) (a c d)
-      const verts = parts.slice(1).map(v => v.split("/"));
-      for (let i = 1; i + 1 < verts.length; i++) {
-        const tri = [verts[0], verts[i], verts[i+1]];
-        for (const v of tri) {
-          const pi = parseIndex(v[0], positions.length);
-          const ti = v[1] ? parseIndex(v[1], uvs.length) : -1;
-          const ni = v[2] ? parseIndex(v[2], normals.length) : -1;
+      const faceVertices = tokens.slice(1).map(vertexToken => vertexToken.split("/"));
+      for (let i = 1; i + 1 < faceVertices.length; i++) {
+        // Itera i tre vertici del triangolo corrente (ventaglio)
+        for (const vertexToken of [faceVertices[0], faceVertices[i], faceVertices[i + 1]]) {
+          // Risolve gli indici OBJ (1-based e negativi) in indici array 0-based
+          const positionIndex = idx(vertexToken[0], positions.length);
+          const uvIndex = vertexToken[1] ? idx(vertexToken[1], uvs.length) : -1;       // -1 se assente
+          const normalIndex = vertexToken[2] ? idx(vertexToken[2], normals.length) : -1; // -1 se assente
 
-          const p = positions[pi];
-          outPos.push(p[0], p[1], p[2]);
+          // Aggiunge la posizione del vertice all'output
+          const position = positions[positionIndex];
+          outPos.push(position[0], position[1], position[2]);
 
-          if (ti >= 0) {
-            const t = uvs[ti];
-            // L'origine vt OBJ è spesso in basso a sinistra; WebGL di solito richiede Y invertita
-            outUV.push(t[0], 1.0 - t[1]);
-          } else {
-            outUV.push(0, 0);
-          }
+          // Aggiunge le coordinate UV; se assenti usa (0, 0). Inverte V per la convenzione OpenGL
+          outUV.push(uvIndex >= 0 ? uvs[uvIndex][0] : 0, uvIndex >= 0 ? 1.0 - uvs[uvIndex][1] : 0);
 
-          if (ni >= 0) {
-            const n = normals[ni];
-            outNor.push(n[0], n[1], n[2]);
-          } else {
-            outNor.push(0, 1, 0);
-          }
+          // Aggiunge la normale; se assente usa il vettore su (0, 1, 0) come fallback
+          const normal = normalIndex >= 0 ? normals[normalIndex] : [0, 1, 0];
+          outNor.push(normal[0], normal[1], normal[2]);
 
-          // Usa il colore vertice se disponibile, altrimenti ricade sul colore del materiale
-          const vc = vertColors[pi];
-          if (vc) {
-            outCol.push(vc[0], vc[1], vc[2]);
-          } else {
-            outCol.push(currentColor[0], currentColor[1], currentColor[2]);
-          }
+          // Aggiunge il colore vertice; se assente usa grigio chiaro come fallback
+          const vertexColor = vertColors[positionIndex] || [0.8, 0.8, 0.8];
+          outCol.push(vertexColor[0], vertexColor[1], vertexColor[2]);
         }
       }
     }
   }
 
+  // Restituisce gli array come Float32Array pronti per i buffer WebGL
   return {
     pos: new Float32Array(outPos),
     uv: new Float32Array(outUV),
     nor: new Float32Array(outNor),
     col: new Float32Array(outCol),
-    vertCount: outPos.length / 3
+    vertCount: outPos.length / 3  // Numero totale di vertici (3 componenti per vertice)
   };
 
-  function parseIndex(str, len) {
-    // OBJ permette indici negativi
-    const idx = parseInt(str, 10);
-    return idx >= 0 ? (idx - 1) : (len + idx);
+  // Converte un indice OBJ (1-based, può essere negativo) in un indice array 0-based
+  function idx(str, len) {
+    const i = parseInt(str, 10);
+    return i >= 0 ? i - 1 : len + i;  // Positivo: sottrae 1; negativo: relativo alla fine
   }
 }
 
@@ -619,20 +414,13 @@ function parseOBJ(objText, materials = {}) {
 // =============================================================================
 // Crea buffer GPU per memorizzare i dati dei vertici (posizioni, normali, colori, UV)
 
-// Crea un buffer WebGL da un typed array
-// USO WEBGL-UTILS: Se disponibile, usa createBufferFromTypedArray()
-// Altrimenti ricade sulla creazione manuale del buffer
+
+// Crea e riempie un buffer direttamente con le API WebGL
 function createArrayBuffer(data) {
-  if (window.webglUtils && webglUtils.createBufferFromTypedArray) {
-    // >>> WEBGL-UTILS: createBufferFromTypedArray(gl, typedArray, type, usage)
-    // Crea e riempie un buffer in un'unica chiamata
-    return webglUtils.createBufferFromTypedArray(gl, data, gl.ARRAY_BUFFER, gl.STATIC_DRAW);
-  }
-  // Fallback: creazione manuale del buffer
-  const buf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  const buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
   gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-  return buf;
+  return buffer;
 }
 
 // Collega un buffer a un attributo shader (connette i dati alla variabile shader)
@@ -670,32 +458,32 @@ const ORBIT_CENTER_Y = 0.2;
 const CLOCK_START_HOUR = 8.0;
 
 // =============================================================================
-// GAME STATE
+// STATO DEL GIOCO
 // =============================================================================
-// Central state object tracking all game variables
+// Oggetto centrale che traccia tutte le variabili di gioco
 const state = {
-  // seconds
+  // secondi
   t: 0,
   lastT: 0,
 
-  // Creature stats (0..1)
-  // continuous hunger 0..1 (kept for shading); use `hungerInt` as primary
+  // Statistiche creatura (0..1)
+  // fame continua 0..1 (usata negli shader); `hungerInt` resta la metrica principale
   hunger: 0.0,
-  hungerInt: 0,   // integer hunger counter, increments every 5s, max 20
-  nextHungerAtMs: Date.now() + 5000, // next wall-clock ms when hunger should increment
+  hungerInt: 0,   // contatore intero fame, incrementa ogni 5s, max 20
+  nextHungerAtMs: Date.now() + 5000, // prossimo istante (ms reali) in cui incrementare fame
   sad: 0.0,
-  moodLevel: 0,   // integer mood: 0=Happy .. 20=Sad
-  nextMoodAtMs: Date.now() + 5000, // next wall-clock ms when mood worsens
+  moodLevel: 0,   // umore intero: 0=felice .. 20=triste
+  nextMoodAtMs: Date.now() + 5000, // prossimo istante (ms reali) in cui peggiorare l'umore
 
-  // Size grows when fed
+  // La dimensione aumenta quando viene nutrito
   size: 1.0,
   targetSize: 1.0,
 
-  // Touch-driven rotation
+  // Rotazione guidata dal touch
   rotY: 0,
   rotX: 0.2,
 
-  // Camera position
+  // Posizione camera
   camX: 0,
   camY: 0,
   camZ: 13.3,
@@ -703,37 +491,37 @@ const state = {
   autoRotateEnabled: false,
 };
 
-// Tune these (all are “per second” rates)
+// Parametri di tuning (tutti espressi "al secondo")
 const RATES = {
   hungerPerSec: 0.03,     // 0 -> 1 in ~33s
   hungerDecayOnFeed: 0.35,
-  sizeGainOnFeed: 0.08,   // add to target size
+  sizeGainOnFeed: 0.08,   // aggiunta alla dimensione target
   maxSize: 2.2,
 
-  sadFromRotatePerSec: 0.75, // how strongly rotation speed creates sadness
-  sadRecoverPerSec: 0.25,    // sadness decays when calm
+  sadFromRotatePerSec: 0.75, // quanto la velocità di rotazione contribuisce alla tristezza
+  sadRecoverPerSec: 0.25,    // quanto la tristezza cala quando è calmo
 
-  sizeSmoothPerSec: 3.0,  // lerp speed
+  sizeSmoothPerSec: 3.0,  // velocità di smoothing (lerp)
 };
 
 // =============================================================================
-// TOUCH CONTROLS
+// CONTROLLI TOUCH
 // =============================================================================
-// Allows rotating the scene by dragging on the canvas (mobile-friendly)
+// Permette di ruotare la scena trascinando sul canvas (mobile-friendly)
 let touching = false;
 let lastTouchX = 0;
 let lastTouchY = 0;
 
-// Touch start - begin tracking
+// Touch start - inizio tracciamento
 canvas.addEventListener("touchstart", (e) => {
-  // ignore touches that start on the feed button area (button is pointer-events auto)
+  // Ignora tocchi che partono dall'area pulsanti (i bottoni hanno pointer-events auto)
   touching = true;
   const t = e.touches[0];
   lastTouchX = t.clientX;
   lastTouchY = t.clientY;
 }, { passive: false });
 
-// Touch move - update rotation based on drag distance
+// Touch move - aggiorna la rotazione in base al trascinamento
 canvas.addEventListener("touchmove", (e) => {
   e.preventDefault();
   if (!touching) return;
@@ -744,7 +532,7 @@ canvas.addEventListener("touchmove", (e) => {
   lastTouchX = t.clientX;
   lastTouchY = t.clientY;
 
-  // rotation sensitivity (pixels -> radians)
+  // Sensibilità rotazione (pixel -> radianti)
   const s = 0.006;
   const prevY = state.rotY;
   const prevX = state.rotX;
@@ -752,15 +540,15 @@ canvas.addEventListener("touchmove", (e) => {
   state.rotY += dx * s;
   state.rotX += dy * s;
 
-  // clamp X so it doesn’t flip
+  // Limita X per evitare ribaltamenti
   state.rotX = Math.max(-0.6, Math.min(0.9, state.rotX));
 
-  // accumulate absolute rotation delta to compute "rotation speed" per second
+  // Accumula il delta assoluto di rotazione per stimare la "velocità di rotazione" al secondo
   const drot = Math.abs(state.rotY - prevY) + Math.abs(state.rotX - prevX);
-  state.rotSpeedAccum += drot; // later divided by dt
+  state.rotSpeedAccum += drot; // verrà poi diviso per dt
 }, { passive: false });
 
-// Touch end - stop tracking
+// Touch end - termina tracciamento
 canvas.addEventListener("touchend", () => { touching = false; });
 canvas.addEventListener("touchcancel", () => { touching = false; });
 
@@ -770,7 +558,8 @@ canvas.addEventListener("touchcancel", () => { touching = false; });
 // Permette di ruotare la scena con i tasti freccia
 const KEYBOARD_ROTATION_SPEED = 0.05; // radianti per pressione tasto
 
-document.addEventListener("keydown", (e) => {
+// >>> USO JQUERY: $(document).on() per eventi tastiera globali
+$(document).on('keydown', (e) => {
   switch (e.key) {
     case "ArrowLeft":
       state.rotY -= KEYBOARD_ROTATION_SPEED;
@@ -798,15 +587,14 @@ document.addEventListener("keydown", (e) => {
 // =============================================================================
 
 // Pulsante Nutri - riduce la fame di 1 (può diventare negativa per "accumulare" cibo)
-feedBtn.addEventListener("click", () => {
-  // Nutrire riduce la fame intera di 1 (può diventare negativa per accumulare cibo)
+// >>> USO JQUERY: $('#id').on('click', ...) per i gestori dei pulsanti
+$('#feedBtn').on('click', () => {
   state.hungerInt = state.hungerInt - 1;
   state.hunger = clamp01(state.hungerInt / 20);
 });
 
 // Pulsante Conforta - ripristina un passo dell'umore per clic
-const cheerBtn = document.getElementById("cheerBtn");
-cheerBtn.addEventListener("click", () => {
+$('#cheerBtn').on('click', () => {
   state.moodLevel = Math.max(0, state.moodLevel - 1);
   // (stesso 1-passo-per-clic del pulsante Nutri)
   state.nextMoodAtMs = Date.now() + 5000;
@@ -971,14 +759,12 @@ function createTexturedSphereMesh(radius, latBands, lonBands) {
   }
 }
 
-// Async initialization function - loads all assets and starts render loop
+// Funzione di inizializzazione asincrona: carica gli asset e avvia il render loop
 (async function init() {
   try {
-    // Load MTL file first for material colors
-    const mtlText = await loadText("assets/creature.mtl");
-    const materials = parseMTL(mtlText);
     const objText = await loadText("assets/creature.obj");
-    mesh = parseOBJ(objText, materials);
+    markAssetLoaded();
+    mesh = parseOBJ(objText);
     window.__OBJ_BOUNDS__ = computeBounds(mesh.pos);
 
     bufPos = createArrayBuffer(mesh.pos);
@@ -986,24 +772,19 @@ function createTexturedSphereMesh(radius, latBands, lonBands) {
     bufNor = createArrayBuffer(mesh.nor);
     bufCol = createArrayBuffer(mesh.col);
 
-    // Carica il modello dell'erba
-    const grassMtlText = await loadText("assets/grass.mtl");
-    const grassMaterials = parseMTL(grassMtlText);
-    for (const matName in grassMaterials) {
-      grassMaterials[matName].kd = [0.2, 0.6, 0.15];
-    }
     const grassObjText = await loadText("assets/grass.obj");
-    grassMesh = parseOBJ(grassObjText, grassMaterials);
+    markAssetLoaded();
+    grassMesh = parseOBJ(grassObjText);
 
     grassBufPos = createArrayBuffer(grassMesh.pos);
     grassBufNor = createArrayBuffer(grassMesh.nor);
     grassBufCol = createArrayBuffer(grassMesh.col);
     grassBufUV = createArrayBuffer(grassMesh.uv);
 
-    grassTexture = await loadTexture("assets/grass.jpg");
+    grassTexture = loadTexture("assets/grass.jpg");
 
     // Carica la texture del pianeta e genera la sua sfera texturizzata
-    planetTexture = await loadTexture("assets/pianetarosmarino.jpeg");
+    planetTexture = loadTexture("assets/pianetarosmarino.jpeg");
     const planetMesh = createTexturedSphereMesh(1.0, 24, 24);
     planetBufPos = createArrayBuffer(planetMesh.pos);
     planetBufNor = createArrayBuffer(planetMesh.nor);
@@ -1018,12 +799,11 @@ function createTexturedSphereMesh(radius, latBands, lonBands) {
     moonBufPos = createArrayBuffer(moonMesh.pos);
     moonVertCount = moonMesh.vertCount;
 
-    // Configurazione GL
-    gl.enable(gl.DEPTH_TEST);
-    gl.disable(gl.CULL_FACE);
-    requestAnimationFrame(loop);
+    initCoreReady = true;
+    tryStartApp();
   } catch (err) {
     console.error("Init error:", err);
+    failLoading(String(err));
     document.body.innerHTML = `<pre style="color:white; padding:12px">Error: ${String(err)}</pre>`;
   }
 })();
@@ -1060,7 +840,10 @@ function computeBounds(pos) {
 // Gestisce i tempi, aggiorna lo stato del gioco e renderizza la scena
 function loop(tsMs) {
   // Ridimensiona il canvas se la finestra è cambiata
-  resizeCanvasToDisplaySize();
+  // >>> WEBGL-UTILS: resizeCanvasToDisplaySize restituisce true se ridimensionato
+  if (webglUtils.resizeCanvasToDisplaySize(canvas, window.devicePixelRatio)) {
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
 
   // Converti il timestamp in secondi
   const t = tsMs * 0.001;
@@ -1116,17 +899,16 @@ function update(dt) {
   state.size = lerp(state.size, state.targetSize, k);
 
   // HUD - Aggiorna le barre di avanzamento
+  // >>> USO JQUERY: .css() per aggiornare gli stili, .text() per il contenuto testuale
   // Barra fame: 0% quando hungerInt=0, 100% quando hungerInt=20
   const hungerPercent = Math.min(100, (state.hungerInt / HUNGER_MAX) * 100);
-  hungerBar.style.width = hungerPercent + '%';
-  // Sposta il gradiente in base al livello di fame (verde -> giallo -> rosso)
-  hungerBar.style.backgroundPosition = hungerPercent + '% 0';
+  $(hungerBar).css({ width: hungerPercent + '%', backgroundPosition: hungerPercent + '% 0' });
   
   // Barra umore: 100% felice -> 0% triste, stessa scala della fame
   const moodPercent = 100 - Math.min(100, (state.moodLevel / 20) * 100);
-  moodBar.style.width = moodPercent + '%';
+  $(moodBar).css('width', moodPercent + '%');
   
-  sizeVal.textContent = state.size.toFixed(2);
+  $(sizeVal).text(state.size.toFixed(2));
   const dayPhase = (state.t % DAY_DURATION_SEC) / DAY_DURATION_SEC;
   const clockHours = (dayPhase * 24.0 + CLOCK_START_HOUR) % 24.0;
   const totalMinutes = Math.floor(clockHours * 60.0);
@@ -1136,7 +918,7 @@ function update(dt) {
   if (clockHours >= 5.0 && clockHours < 8.0) periodLabel = 'Dawn';
   else if (clockHours >= 8.0 && clockHours < 17.0) periodLabel = 'Day';
   else if (clockHours >= 17.0 && clockHours < 20.0) periodLabel = 'Dusk';
-  timeVal.textContent = `${hh}:${mm} ${periodLabel}`;
+  $(timeVal).text(`${hh}:${mm} ${periodLabel}`);
 
   // Auto-rotazione quando abilitata
   if (state.autoRotateEnabled) {
@@ -1208,8 +990,8 @@ function render() {
 
   // Abilita il depth testing (gli oggetti più vicini occludono quelli più lontani)
   gl.enable(gl.DEPTH_TEST);
-  // Disabilita il face culling per mostrare entrambi i lati dei poligoni
-  gl.disable(gl.CULL_FACE);
+  // Abilita il face culling per mostrare solo i lati frontali dei poligoni
+  gl.enable(gl.CULL_FACE);
 
   // Due luci dinamiche: sole caldo + luna fredda
   const sunLightColor = [
@@ -1389,7 +1171,13 @@ function render() {
     if (texULightPos2) gl.uniform3fv(texULightPos2, moonLightPos);
     if (texULightColor) gl.uniform3fv(texULightColor, sunLightColor);
     if (texULightColor2) gl.uniform3fv(texULightColor2, moonLightColor);
-    if (texUAmbientColor) gl.uniform3fv(texUAmbientColor, ambientColor);
+    // Ambient minimo garantito per il pianeta (è lontano dalle luci puntuali)
+    const planetAmbient = [
+      Math.max(0.35, ambientColor[0]),
+      Math.max(0.35, ambientColor[1]),
+      Math.max(0.35, ambientColor[2])
+    ];
+    if (texUAmbientColor) gl.uniform3fv(texUAmbientColor, planetAmbient);
     if (texUFillLightColor) gl.uniform3fv(texUFillLightColor, fillLightColor);
 
     gl.activeTexture(gl.TEXTURE0);
@@ -1457,3 +1245,5 @@ function render() {
   const err = gl.getError();
   if (err !== 0) console.warn('GL error after draw:', err);
 }
+
+})();

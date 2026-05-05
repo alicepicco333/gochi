@@ -7,6 +7,11 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div id="loadingOverlay" aria-live="polite">
+    <div id="loadingTitle">GOCHI</div>
+    <div id="loadingSpinner" aria-hidden="true"></div>
+  </div>
+
   <canvas id="webglcanvas" width="1920" height="1080"></canvas>
 
   <div id="ui">
@@ -31,8 +36,12 @@
     </div>
   </div>
 
+  <script src="./jquery-3.6.0.js"></script>
   <script src="./dat.gui.js"></script>
   <script src="./webgl-utils.js"></script>
+  <script src="./m4.js"></script>
+  <script src="./mesh_utils.js"></script>
+  <script src="./glm_utils.js"></script>
   <script src="main.js"></script>
 </body>
 </html>

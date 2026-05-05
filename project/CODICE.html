@@ -1,0 +1,1103 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Analisi del codice - main.js | Tamagotchi 3D in WebGL</title>
+  <style>
+    :root{--bg:#f7f8fb;--paper:#fff;--text:#1f2937;--border:#e5e7eb;--accent:#0f766e;
+          --code-bg:#1e1e2e;--code-text:#cdd6f4;--line-num:#6c7086;--highlight:#313244;
+          --tag-blue:#89b4fa;--tag-green:#a6e3a1;--tag-yellow:#f9e2af;--tag-red:#f38ba8;
+          --tag-purple:#cba6f7;--tag-orange:#fab387}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Georgia,"Times New Roman",serif;color:var(--text);
+         background:linear-gradient(180deg,#eef2ff 0%,var(--bg) 40%)}
+    main{max-width:1080px;margin:32px auto;background:var(--paper);border:1px solid var(--border);
+         border-radius:12px;padding:40px 48px;box-shadow:0 10px 30px rgba(0,0,0,.06)}
+    h1,h2,h3,h4{font-family:"Segoe UI",Tahoma,sans-serif;line-height:1.25;margin-top:1.4em}
+    h1{font-size:2rem;margin-top:0}
+    h2{font-size:1.45rem;border-bottom:1px solid var(--border);padding-bottom:6px}
+    h3{font-size:1.15rem}
+    h4{font-size:1rem;margin-top:1em;color:#374151}
+    p{font-size:1.03rem;line-height:1.7;margin:.8em 0;text-align:justify}
+    ul,ol{margin:.6em 0 1em 1.3em;line-height:1.6}
+    hr{border:0;border-top:1px solid var(--border);margin:1.4em 0}
+    a{color:var(--accent);text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    /* Inline code */
+    code{font-family:Consolas,Monaco,monospace;background:#f3f4f6;border:1px solid #e5e7eb;
+         border-radius:4px;padding:1px 5px;font-size:.93em}
+
+    /* Code block with line-by-line annotations */
+    .block{margin:1.2em 0 1.8em;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+    .block-header{background:#f9fafb;border-bottom:1px solid var(--border);
+                  padding:8px 14px;font-family:"Segoe UI",sans-serif;font-size:.88rem;
+                  color:#6b7280;font-style:italic}
+
+    /* A single annotated line */
+    .line{display:grid;grid-template-columns:42px 1fr 1fr;min-height:28px}
+    .line:nth-child(odd){background:var(--code-bg)}
+    .line:nth-child(even){background:#181825}
+    .line.hl{background:var(--highlight)!important}
+    .line.sep{grid-template-columns:1fr;background:#0d0d14;border-top:1px solid #313244;
+              border-bottom:1px solid #313244}
+    .line.sep .sep-label{color:#6c7086;font-size:.8rem;font-family:"Segoe UI",sans-serif;
+                         padding:5px 14px;font-style:italic}
+
+    .ln{color:var(--line-num);font-family:Consolas,Monaco,monospace;font-size:.82rem;
+        padding:4px 8px;text-align:right;user-select:none;border-right:1px solid #313244;
+        line-height:1.6}
+    .src{font-family:Consolas,Monaco,monospace;font-size:.88rem;color:var(--code-text);
+         padding:4px 12px;white-space:pre;overflow-x:auto;line-height:1.6}
+    .ann{font-family:"Segoe UI",Tahoma,sans-serif;font-size:.82rem;color:#bac2de;
+         padding:4px 12px 4px 16px;border-left:2px solid #313244;line-height:1.5;
+         display:flex;align-items:flex-start;gap:6px}
+    .ann::before{content:"↳";color:#6c7086;flex-shrink:0;margin-top:1px}
+
+    /* Value badges */
+    .val{display:inline-block;background:#2a2a3e;border:1px solid #45475a;border-radius:4px;
+         padding:0 5px;margin:0 2px;font-family:Consolas,Monaco,monospace;font-size:.8em;
+         color:var(--tag-yellow)}
+    .kw{color:var(--tag-blue)}
+    .str{color:var(--tag-green)}
+    .num{color:var(--tag-yellow)}
+    .fn{color:var(--tag-orange)}
+    .cm{color:#6c7086;font-style:italic}
+    .lib{color:var(--tag-purple)}
+
+    /* Summary box */
+    .box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;
+         padding:12px 16px;margin:1em 0;font-size:.97rem;line-height:1.6}
+    .box.warn{background:#fffbeb;border-color:#fde68a}
+    .box.info{background:#eff6ff;border-color:#bfdbfe}
+
+    /* Number annotation table */
+    table.nums{width:100%;border-collapse:collapse;margin:.8em 0;font-size:.93rem}
+    table.nums th{background:#f3f4f6;padding:6px 10px;text-align:left;
+                  border:1px solid var(--border);font-family:"Segoe UI",sans-serif}
+    table.nums td{padding:6px 10px;border:1px solid var(--border);vertical-align:top}
+    table.nums tr:nth-child(even) td{background:#f9fafb}
+  </style>
+</head>
+<body>
+<main>
+
+<h1>Analisi riga per riga — <code>main.js</code></h1>
+<h2>Tamagotchi 3D in WebGL</h2>
+
+<hr>
+
+<p>Questo documento analizza ogni blocco e ogni riga significativa di <code>main.js</code>, spiegando cosa fa il codice, perché è scritto in quel modo e il significato di ogni valore numerico presente. Lo stile segue quello della relazione tecnica principale.</p>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>1. Wrapper libreria matematica — m4.js</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<p>Le prime righe del file definiscono un livello di "wrapper": funzioni di una sola riga che mappano i nomi interni del progetto alle funzioni della libreria <strong>m4.js</strong>. Questo permette di usare nomi concisi in tutto il codice (es. <code>mat4Mul</code>) senza cambiare i punti di chiamata se si cambia libreria.</p>
+
+<div class="block">
+  <div class="block-header">main.js — righe 1–33 — Wrapper m4.js</div>
+
+  <div class="line">
+    <div class="ln">1</div>
+    <div class="src">const mat4Mul = (a, b) => m4.multiply(a, b);</div>
+    <div class="ann">Moltiplicazione di due matrici 4×4. Usata per comporre trasformazioni: Model × View × Projection, o per applicare la rotazione della scena a una MVP parziale.</div>
+  </div>
+  <div class="line">
+    <div class="ln">2</div>
+    <div class="src">const mat4Identity = () => m4.identity();</div>
+    <div class="ann">Restituisce la matrice identità 4×4. Punto di partenza neutro: moltiplicare qualsiasi matrice per l'identità la lascia invariata.</div>
+  </div>
+  <div class="line">
+    <div class="ln">3</div>
+    <div class="src">const mat4Translate = (tx, ty, tz) => m4.translation(tx, ty, tz);</div>
+    <div class="ann">Crea una matrice di traslazione pura. Usata per posizionare la creatura sull'erba, il pianeta sullo sfondo, sole e luna in orbita.</div>
+  </div>
+  <div class="line">
+    <div class="ln">4</div>
+    <div class="src">const mat4Scale = (sx, sy, sz) => m4.scaling(sx, sy, sz);</div>
+    <div class="ann">Matrice di scala non uniforme. Tre parametri separati permettono di scalare diversamente per asse, utile ad esempio per schiacciare o stirare un modello. In pratica qui sx=sy=sz (scala uniforme).</div>
+  </div>
+  <div class="line">
+    <div class="ln">5</div>
+    <div class="src">const mat4RotateY = (rad) => m4.yRotation(rad);</div>
+    <div class="ann">Rotazione attorno all'asse Y verticale. Usata per la rotazione touch/tastiera della scena e per la rotazione lenta del pianeta.</div>
+  </div>
+  <div class="line">
+    <div class="ln">6</div>
+    <div class="src">const mat4RotateX = (rad) => m4.xRotation(rad);</div>
+    <div class="ann">Rotazione attorno all'asse X orizzontale. Usata per il tilt verticale della scena (drag su/giù) e per ruotare il piano dell'erba da XY a XZ (–π/2).</div>
+  </div>
+  <div class="line">
+    <div class="ln">7</div>
+    <div class="src">const mat4Perspective = (fovy, aspect, near, far) => m4.perspective(fovy, aspect, near, far);</div>
+    <div class="ann">Costruisce la matrice di proiezione prospettica. I quattro parametri definiscono il <em>frustum</em> visivo: angolo di campo verticale, rapporto larghezza/altezza canvas, piano di clipping vicino e lontano.</div>
+  </div>
+  <div class="line">
+    <div class="ln">8</div>
+    <div class="src">const mat4TransformPoint = (mat, p) => m4.transformPoint(mat, p);</div>
+    <div class="ann">Trasforma un punto 3D con una matrice 4×4, gestendo la divisione per W. Usata per portare le posizioni di sole e luna dallo spazio di base allo spazio ruotato dalla scena.</div>
+  </div>
+  <div class="line">
+    <div class="ln">9</div>
+    <div class="src">const vec3Normalize = (v) => m4.normalize(v);</div>
+    <div class="ann">Normalizza un vettore 3D (lunghezza = 1). Usata nell'illuminazione per ottenere direzioni di luce unitarie indipendenti dalla distanza.</div>
+  </div>
+  <div class="line">
+    <div class="ln">10</div>
+    <div class="src">const vec3Cross = (a, b) => m4.cross(a, b);</div>
+    <div class="ann">Prodotto vettoriale: dati due vettori produce un terzo perpendicolare ad entrambi. Usato internamente da m4.lookAt per costruire la base ortonormale della camera.</div>
+  </div>
+  <div class="line">
+    <div class="ln">11</div>
+    <div class="src">const vec3Sub = (a, b) => m4.subtractVectors(a, b);</div>
+    <div class="ann">Sottrazione vettoriale componente per componente. Produce il vettore che va da b ad a; usato per calcolare la direzione dalla camera al target in lookAt.</div>
+  </div>
+  <div class="line hl">
+    <div class="ln">12</div>
+    <div class="src">function mat4LookAt(eye, center, up) {
+  return m4.inverse(m4.lookAt(eye, center, up));
+}</div>
+    <div class="ann"><strong>Nota critica:</strong> <code>m4.lookAt()</code> restituisce la <em>matrice camera</em> (orientamento della telecamera nello spazio mondo). WebGL però usa la sua inversa come <em>matrice vista</em>. L'inversione è quindi obbligatoria: senza di essa la scena sarebbe capovolta o assente.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>2. Riferimenti DOM con jQuery</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<p>jQuery seleziona elementi HTML per ID e li memorizza in variabili. Il suffisso <code>[0]</code> è necessario perché le API WebGL e Canvas si aspettano un elemento DOM nativo, non un wrapper jQuery.</p>
+
+<div class="block">
+  <div class="block-header">main.js — Selezione elementi DOM</div>
+
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const canvas    = $('#webglcanvas')[0];</div>
+    <div class="ann">Elemento <code>&lt;canvas&gt;</code>: il target del rendering WebGL. Serve l'oggetto nativo per <code>getContext()</code>.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const feedBtn   = $('#feedBtn')[0];</div>
+    <div class="ann">Pulsante "Nutri". Recuperato come riferimento DOM nativo (non strettamente necessario con jQuery ma mantiene coerenza con le API evento touch native sottostanti).</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const hungerBar = $('#hungerBar')[0];
+const moodBar   = $('#moodBar')[0];</div>
+    <div class="ann">Elementi <code>&lt;div&gt;</code> delle barre di avanzamento HUD. Aggiornate ogni frame con <code>$(el).css('width', ...)</code>.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const sizeVal   = $('#sizeVal')[0];
+const timeVal   = $('#timeVal')[0];</div>
+    <div class="ann">Span di testo nell'HUD: mostrano rispettivamente la dimensione corrente della creatura e l'ora simulata del giorno.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>3. Contesto WebGL</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="block">
+  <div class="block-header">main.js — Creazione contesto grafico</div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">const gl =
+  canvas.getContext("webgl2", { antialias: true }) ||
+  canvas.getContext("webgl",  { antialias: true }) ||
+  canvas.getContext("experimental-webgl");</div>
+    <div class="ann">Strategia a tre livelli di fallback. <strong>WebGL2</strong> è preferito (API più ricca). Se non disponibile si usa <strong>WebGL1</strong> standard. L'ultimo fallback <code>experimental-webgl</code> copre browser datati. <code>antialias: true</code> attiva il multi-sample antialiasing fornito dalla GPU: rimuove i bordi seghettati senza costo di codice aggiuntivo.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>4. Prevenzione zoom del browser</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="block">
+  <div class="block-header">main.js — Event listener globali</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">$(window).on('wheel', (e) => {
+  if (e.originalEvent.ctrlKey) e.preventDefault();
+});</div>
+    <div class="ann">Intercetta la rotella del mouse tenendo premuto Ctrl — combinazione che il browser interpreta come "zoom della pagina". <code>e.originalEvent</code> è necessario perché jQuery normalizza l'evento e nasconde le proprietà native dentro <code>originalEvent</code>. <code>preventDefault()</code> blocca lo zoom senza disabilitare lo scroll normale.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">$(window).on('gesturestart gesturechange gestureend', (e) => e.preventDefault());</div>
+    <div class="ann">Blocca i gesti multitouch nativi di Safari (pizzico per zoomare). Tre eventi coperti in una sola chiamata <code>.on()</code> passando una stringa separata da spazi: caratteristica jQuery che semplifica la registrazione multipla.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>5. Funzioni di utilità matematica</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="block">
+  <div class="block-header">main.js — clamp01 e lerp</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">function clamp01(x) { return Math.max(0, Math.min(1, x)); }</div>
+    <div class="ann">Limita x all'intervallo [0, 1]. Usata ovunque si debba garantire che un rapporto (fame, tristezza, fattore giorno) rimanga in range prima di passarlo agli shader come uniform.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">function lerp(a, b, t) { return a + (b - a) * t; }</div>
+    <div class="ann">Interpolazione lineare: restituisce <em>a</em> quando t=0, <em>b</em> quando t=1, il valore intermedio per t∈(0,1). Usata per transizioni fluide di colore del cielo, intensità luci e dimensione della creatura.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>6. Shader della creatura — VS e FS</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<p>Gli shader sono stringhe GLSL compilate dalla GPU a run-time. Esistono tre coppie separate, ognuna per un tipo di oggetto diverso.</p>
+
+<h3>6.1 Vertex Shader (VS) — creatura</h3>
+<div class="block">
+  <div class="block-header">GLSL — vertex shader principale</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">attribute vec3 aPos;</div>
+    <div class="ann">Posizione 3D del vertice, in coordinate modello. Viene dall'OBJ caricato da Blender e inviato alla GPU tramite buffer.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">attribute vec3 aNor;</div>
+    <div class="ann">Normale del vertice, necessaria per calcolare l'angolo tra la superficie e la luce (illuminazione diffuse Lambertiana).</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">attribute vec3 aCol;</div>
+    <div class="ann">Colore RGB del vertice esportato da Blender (vertex paint). Permette alla creatura di avere colori diversi per ogni parte senza texture aggiuntive.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">uniform mat4 uMVP;</div>
+    <div class="ann">Matrice Model-View-Projection precomposta sul lato CPU. Trasforma ogni vertice direttamente in clip space (coordinate schermo normalizzate), evitando tre moltiplicazioni separate nella GPU.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">uniform mat4 uModel;</div>
+    <div class="ann">Solo la matrice modello (senza vista né proiezione). Serve al fragment shader per calcolare la posizione del punto nel world space, necessaria per le luci puntuali (la direzione luce dipende dalla posizione mondiale del punto).</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">vN = mat3(uModel) * aNor;</div>
+    <div class="ann"><code>mat3(uModel)</code> estrae la sottomat 3×3 della matrice modello (solo rotazione e scala, non traslazione). Le normali sono vettori direzionali, non punti: la traslazione non deve influenzarle. Trasformare le normali con la stessa rotazione del modello mantiene coerenza con la geometria deformata.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">vPos = uModel * vec4(aPos, 1.0);</div>
+    <div class="ann">Posizione del vertice in world space (con W=1.0 perché è un punto, non un vettore). Passata al fragment shader per calcolare la distanza e la direzione verso ciascuna luce puntuale.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">gl_Position = uMVP * vec4(aPos, 1.0);</div>
+    <div class="ann">Posizione finale in clip space: output obbligatorio di ogni vertex shader. La GPU usa questo valore per rasterizzare il triangolo sullo schermo.</div>
+  </div>
+</div>
+
+<h3>6.2 Fragment Shader (FS) — creatura</h3>
+<div class="block">
+  <div class="block-header">GLSL — fragment shader principale</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">precision mediump float;</div>
+    <div class="ann">Precisione floating-point <em>media</em> (16 bit). Scelta per compatibilità con dispositivi mobile che non supportano <em>highp</em> nel fragment shader. Sufficiente per colori e lighting di questa scena.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">uniform float uSad;    // 0..1
+uniform float uHunger; // 0..1</div>
+    <div class="ann">Scalari che rappresentano lo stato emotivo della creatura. Valori nell'intervallo [0,1] perché GLSL li usa direttamente in interpolazioni (<code>mix()</code>) e moltiplicazioni di colore. Trasmessi dalla CPU ogni frame.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">vec3 lightDir = normalize(uLightPos - vPos.xyz);
+vec3 lightDir2 = normalize(uLightPos2 - vPos.xyz);</div>
+    <div class="ann">Direzione dalla superficie alla sorgente luce. Calcolata per pixel (non per vertice) per un'illuminazione più accurata: su geometrie a bassa densità di vertici, calcolarla per vertice causerebbe sfumature visibilmente errate.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">float diffuse = max(0.0, dot(n, lightDir));</div>
+    <div class="ann">Modello di illuminazione Lambertiano: la luce ricevuta è proporzionale al coseno dell'angolo tra la normale e la direzione della luce. <code>max(0.0, ...)</code> azzera i valori negativi (lato in ombra): senza questo clamp le facce sul retro riceverebbero luce negativa, sottraendo luminosità ad altri contributi.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">float fillDiffuse = max(0.0, dot(n, normalize(vec3(0.0, 1.0, 0.35))));</div>
+    <div class="ann">Terza luce "fill" con direzione fissa (dal basso-davanti): <span class="val">0.0</span> X, <span class="val">1.0</span> Y, <span class="val">0.35</span> Z. Simula la luce ambientale riflessa dal terreno. La direzione è fissa in world space perché il suo scopo è riempire le ombre piatte, non seguire la scena.</div>
+  </div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">vec3 sadTint  = mix(vec3(1.0), vec3(0.75, 0.85, 1.15), uSad);
+vec3 hungerTint = mix(vec3(1.0), vec3(2.4, 0.7, 0.7), uHunger);</div>
+    <div class="ann">
+      <strong>Valori numerici motivati:</strong><br>
+      <code>sadTint</code>: la tinta triste è blu-freddo: R=<span class="val">0.75</span> (rosso ridotto), G=<span class="val">0.85</span> (verde ridotto), B=<span class="val">1.15</span> (blu aumentato). Il blu supera 1.0 per enfatizzare la sensazione fredda anche su colori già chiari.<br>
+      <code>hungerTint</code>: R=<span class="val">2.4</span> spinge il rosso molto in alto (effetto "bruciato di fame"), G e B=<span class="val">0.7</span> abbassati per aumentare il contrasto con il rosso. Il valore 2.4 è intenzionalmente sopra 1.0: GLSL clampera a 1.0 solo all'output, creando una zona di saturazione rossa visibile su quasi tutti i colori base.
+    </div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">float gray = dot(col, vec3(0.299, 0.587, 0.114));
+col = mix(col, vec3(gray), uSad * 0.35);</div>
+    <div class="ann">Desaturazione progressiva. I coefficienti <span class="val">0.299</span>, <span class="val">0.587</span>, <span class="val">0.114</span> sono i pesi di luminanza BT.601 (standard televisivo), che corrispondono alla sensibilità dell'occhio umano ai tre colori primari. Il fattore <span class="val">0.35</span> limita la desaturazione massima al 35% per evitare che anche la massima tristezza renda la creatura completamente grigia.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>7. Shader texturizzato — VS_TEX e FS_TEX</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<p>Coppia separata per erba e pianeta, che campionano una texture UV invece di usare colori vertice.</p>
+
+<div class="block">
+  <div class="block-header">GLSL — shader texturizzato (erba e pianeta)</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">attribute vec2 aUV;</div>
+    <div class="ann">Coordinate UV (trama): due valori per vertice che indicano quale punto della texture mappa su quel vertice. Due componenti invece di tre perché la texture è 2D.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">vWorldPos = (uModel * vec4(aPos, 1.0)).xyz;</div>
+    <div class="ann">Posizione mondo passata al fragment shader per calcolare le luci puntuali. Analoga a <code>vPos</code> nel primo shader, ma qui denominata <code>vWorldPos</code> per chiarezza semantica (è già nello spazio mondo, non nel clip space).</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">vec4 texColor = texture2D(uTexture, vUV);
+if (texColor.a < 0.5) discard;</div>
+    <div class="ann">Test alpha: i pixel con alpha sotto <span class="val">0.5</span> vengono scartati senza scrivere nel depth buffer né nel color buffer. Questo permette ai fili d'erba (che hanno trasparenza nei bordi della texture) di apparire ritagliati invece di avere un rettangolo solido visibile. La soglia 0.5 è il punto medio: tutto sotto è "trasparente", tutto sopra è "opaco".</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>8. Shader emissivo — VS_SUN e FS_SUN</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<p>Shader minimale per sole e luna: nessuna illuminazione, solo colore piatto emissivo.</p>
+
+<div class="block">
+  <div class="block-header">GLSL — shader emissivo (sole e luna)</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">uniform vec3 uSunColor;
+gl_FragColor = vec4(uSunColor, 1.0);</div>
+    <div class="ann">Il colore è interamente controllato dalla CPU tramite uniform e non dipende da normali né luce. Scelta corretta per sorgenti luminose visibili: una lampada non è <em>illuminata</em> dalla luce, è la luce stessa. L'alpha è fisso a <span class="val">1.0</span> (completamente opaco).</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>9. Compilazione e linking dei programmi shader</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="block">
+  <div class="block-header">main.js — createProgramFromSources via webgl-utils</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">if (window.webglUtils && webglUtils.createProgramFromSources) {
+  program = webglUtils.createProgramFromSources(gl, [VS, FS]);
+  if (!program) throw new Error('...');
+} else { /* fallback manuale */ }</div>
+    <div class="ann">Controllo di disponibilità prima di usare la libreria. Il fallback manuale contiene <code>compileShader()</code> e <code>createProgram()</code> che replicano la stessa logica di webgl-utils. In questo modo il codice funziona anche se il file <code>webgl-utils.js</code> non carica (rete lenta, file mancante).</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">let texProgram = webglUtils.createProgramFromSources(gl, [VS_TEX, FS_TEX]);
+let sunProgram = webglUtils.createProgramFromSources(gl, [VS_SUN, FS_SUN]);</div>
+    <div class="ann">I programmi per texture ed emissivo usano direttamente webgl-utils senza fallback perché se il main program è già stato creato con successo, webglUtils è certamente disponibile. Questo semplifica il codice senza perdere robustezza.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">gl.deleteShader(vs);
+gl.deleteShader(fs);</div>
+    <div class="ann">Dopo il linking, i shader compilati non sono più necessari: il programma GPU è autonomo. Liberarli riduce l'utilizzo di memoria sulla GPU.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>10. loadTexture — caricamento asincrono texture</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="block">
+  <div class="block-header">main.js — funzione loadTexture</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">return new Promise((resolve, reject) => { ... });</div>
+    <div class="ann">Il caricamento immagini è asincrono per natura (il browser scarica il file in background). La Promise incapsula la callback <code>image.onload</code> in un'interfaccia moderna compatibile con <code>async/await</code>.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);</div>
+    <div class="ann"><code>REPEAT</code> fa sì che le UV fuori dall'intervallo [0,1] ripetano la texture invece di estirarne il bordo. Fondamentale per il piano erboso (UV grandi che si ripetono molte volte).</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);</div>
+    <div class="ann">Filtraggio trilineare: interpola tra i due livelli mipmap più vicini E fa interpolazione bilineare all'interno di ciascun livello. Dà la migliore qualità per oggetti lontani, eliminando aliasing e shimmer. Richiede che <code>generateMipmap()</code> sia chiamata.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);</div>
+    <div class="ann">Ingrandimento bilineare: interpola tra i texel vicini quando la texture è ingrandita oltre la sua risoluzione nativa. Evita il pixellato visibile sugli oggetti vicini.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">gl.generateMipmap(gl.TEXTURE_2D);</div>
+    <div class="ann">Genera automaticamente la catena mipmap: versioni a risoluzione dimezzata (½, ¼, ⅛, …) della texture. Necessarie per il filtro <code>LINEAR_MIPMAP_LINEAR</code> impostato sopra.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>11. parseMTL — parser materiali Wavefront</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="block">
+  <div class="block-header">main.js — funzione parseMTL</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">materials[currentMat] = { kd: [0.8, 0.8, 0.8] };</div>
+    <div class="ann">Colore diffuso predefinito grigio chiaro <span class="val">0.8</span> su tutti e tre i canali. Scelto perché si vede bene con qualsiasi colore di luce senza essere troppo bianco (che saturerebbe) né troppo scuro. Se un materiale non specifica <code>Kd</code>, il grigio è un fallback neutro visivamente accettabile.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">if (tag === "Kd" && currentMat) {
+  materials[currentMat].kd = [+parts[1], +parts[2], +parts[3]];
+}</div>
+    <div class="ann">Legge solo il canale diffuso (<code>Kd</code>) del materiale. Il file MTL può contenere anche Ka (ambient), Ks (specular), Ns (shininess), ecc., ma il progetto non usa riflessioni speculari né ambient separata, quindi questi campi vengono ignorati per semplicità.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>12. parseOBJ — parser geometria Wavefront</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<p>Converte il testo OBJ in <code>Float32Array</code> piatti pronti per i buffer GPU. Non usa indici (indexed rendering): ogni vertice della faccia viene espanso in modo indipendente.</p>
+
+<div class="block">
+  <div class="block-header">main.js — funzione parseOBJ</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">if (parts.length >= 7) {
+  vertColors.push([+parts[4], +parts[5], +parts[6]]);
+}</div>
+    <div class="ann">Blender può esportare OBJ con colori vertice nella riga <code>v</code>: <code>v x y z r g b</code>. Il controllo <code>length &gt;= 7</code> detecta questo formato esteso. Se il colore vertice è presente viene usato al posto del colore materiale per quel vertice specifico.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">outUV.push(t[0], 1.0 - t[1]);</div>
+    <div class="ann">Inversione della coordinata V. Il formato OBJ usa l'origine UV in basso a sinistra; WebGL usa l'origine in alto a sinistra. Invertire V (<code>1.0 - t[1]</code>) corregge questo allineamento: senza questa inversione le texture apparirebbero capovolte verticalmente.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">// triangolazione a ventaglio
+const verts = parts.slice(1).map(v => v.split("/"));
+for (let i = 1; i + 1 < verts.length; i++) {
+  const tri = [verts[0], verts[i], verts[i+1]];
+}</div>
+    <div class="ann">Triangolazione a ventaglio (<em>fan triangulation</em>): il primo vertice della faccia diventa il centro, e ogni coppia successiva di vertici forma un triangolo con esso. Questo funziona correttamente per facce convesse (quad Blender), che è il caso tipico. WebGL non supporta poligoni, solo triangoli.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">function parseIndex(str, len) {
+  const idx = parseInt(str, 10);
+  return idx >= 0 ? (idx - 1) : (len + idx);
+}</div>
+    <div class="ann">Il formato OBJ usa indici <strong>1-based</strong> (il primo elemento è 1, non 0): quindi <code>idx - 1</code> converte in 0-based per gli array JavaScript. Gli indici negativi sono relativi alla fine della lista corrente (<code>len + idx</code>): usati da alcuni esportatori per riferirsi ai vertici appena definiti.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">return {
+  pos: new Float32Array(outPos),
+  ...
+  vertCount: outPos.length / 3
+};</div>
+    <div class="ann"><code>Float32Array</code> invece di array normale: i buffer WebGL richiedono dati binari tipizzati. La GPU li interpreta come sequenza di float a 32 bit. <code>vertCount</code> è il numero di vertici totali (non il numero di float), calcolato dividendo la lunghezza dell'array posizioni per 3 (tre float per vertice: x, y, z).</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>13. createArrayBuffer e bindAttrib</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="block">
+  <div class="block-header">main.js — gestione buffer GPU</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">return webglUtils.createBufferFromTypedArray(gl, data, gl.ARRAY_BUFFER, gl.STATIC_DRAW);</div>
+    <div class="ann"><code>gl.ARRAY_BUFFER</code>: tipo buffer per attributi vertice (contrapposto a <code>ELEMENT_ARRAY_BUFFER</code> per gli indici). <code>gl.STATIC_DRAW</code>: suggerimento alla GPU che i dati saranno scritti una volta e letti molte volte — permette ottimizzazioni di allocazione nella VRAM.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">function bindAttrib(name, size, buffer) {
+  const loc = gl.getAttribLocation(program, name);
+  gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+}</div>
+    <div class="ann"><code>size</code> è il numero di componenti per vertice (3 per posizione/normale/colore, 2 per UV). <code>gl.FLOAT</code>: tipo dati. <code>false</code>: non normalizzare (i dati sono già in range corretto). Stride <span class="val">0</span>: gli attributi sono in buffer separati, non interleaved (stride=0 dice alla GPU di dedurre il passo dal size). Offset <span class="val">0</span>: i dati iniziano dall'inizio del buffer.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>14. Costanti globali</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<table class="nums">
+  <tr><th>Costante</th><th>Valore</th><th>Motivazione</th></tr>
+  <tr><td><code>DAY_DURATION_SEC</code></td><td>60.0</td><td>Un giorno in-game dura 60 secondi reali. Abbastanza lento da osservare il ciclo giorno/notte, abbastanza rapido da vederlo completarsi durante una sessione di test.</td></tr>
+  <tr><td><code>ORBIT_RADIUS_X</code></td><td>7.0</td><td>Raggio orizzontale dell'orbita di sole e luna in unità mondo. Valore scelto per far sorgere e tramontare il sole ai lati del campo visivo della camera (camZ=13.3, fov=45°).</td></tr>
+  <tr><td><code>ORBIT_RADIUS_Y</code></td><td>5.5</td><td>Raggio verticale dell'orbita. Più piccolo di X per un'orbita ellittica piatta: il sole non sale troppo in alto ed è sempre visibile nella scena senza dover alzare la camera.</td></tr>
+  <tr><td><code>ORBIT_CENTER_Y</code></td><td>0.2</td><td>Il centro dell'orbita è leggermente sopra il piano del terreno (y=0). Questo fa sì che il sole, al suo punto più basso dell'orbita, sia appena sotto l'orizzonte, simulando il tramonto realistico.</td></tr>
+  <tr><td><code>CLOCK_START_HOUR</code></td><td>8.0</td><td>Ora di partenza dell'orologio in-game: le 8:00 del mattino. Così il ciclo inizia a giorno pieno invece che a notte, più piacevole per la prima impressione.</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>15. Oggetto di stato (state)</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<p>Unico punto di verità per tutto lo stato della simulazione. Raccogliere lo stato in un oggetto evita variabili globali sparse e facilita il debug (basta ispezionare <code>state</code> dalla console).</p>
+
+<table class="nums">
+  <tr><th>Proprietà</th><th>Valore iniziale</th><th>Significato e motivazione</th></tr>
+  <tr><td><code>t</code>, <code>lastT</code></td><td>0</td><td>Tempo corrente e precedente in secondi. La differenza è dt (delta time del frame), necessario per aggiornamenti indipendenti dal frame rate.</td></tr>
+  <tr><td><code>hunger</code></td><td>0.0</td><td>Fame continua [0..1] per gli shader. Inizia a 0 (sazio) e sale nel tempo.</td></tr>
+  <tr><td><code>hungerInt</code></td><td>0</td><td>Contatore intero [0..20]: versione discreta della fame per la logica di gioco. Più facile da ragionare rispetto a valori float continui.</td></tr>
+  <tr><td><code>nextHungerAtMs</code></td><td>Date.now() + 5000</td><td>Timestamp wall-clock per il prossimo incremento fame. Usa <code>Date.now()</code> (ms reali) invece di <code>state.t</code> (tempo animazione) per essere resiliente ai tab in background che rallentano requestAnimationFrame.</td></tr>
+  <tr><td><code>moodLevel</code></td><td>0</td><td>Umore discreto [0=Felice .. 20=Triste]. Stesso schema a 20 passi della fame per coerenza visiva nelle barre HUD.</td></tr>
+  <tr><td><code>size</code></td><td>1.0</td><td>Dimensione corrente (interpolata). 1.0 è la scala neutra.</td></tr>
+  <tr><td><code>targetSize</code></td><td>1.0</td><td>Dimensione target verso cui <code>size</code> si avvicina gradualmente. Separare target e valore corrente permette transizioni smooth senza codice di animazione esplicito.</td></tr>
+  <tr><td><code>rotY</code>, <code>rotX</code></td><td>0, 0.2</td><td>Rotazione scena. <code>rotX = 0.2</code> rad (≈11°) dà una visuale leggermente dall'alto alla partenza, più naturale per un personaggio a terra.</td></tr>
+  <tr><td><code>camZ</code></td><td>13.3</td><td>Distanza camera dalla scena lungo Z. Valore scelto empiricamente per inquadrare la creatura con margini bilaterali confortevoli al fov di 45°.</td></tr>
+  <tr><td><code>autoRotateEnabled</code></td><td>false</td><td>Off per default: l'utente parte da una scena ferma e controlla lui la rotazione.</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>16. Costanti RATES</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<table class="nums">
+  <tr><th>Costante</th><th>Valore</th><th>Motivazione</th></tr>
+  <tr><td><code>hungerPerSec</code></td><td>0.03</td><td>Da 0 a 1 in ~33 secondi. Questa velocità è sostituita nel codice dal sistema a step (ogni 5 secondi), ma il valore rimane per compatibilità con eventuali shader che la usano direttamente.</td></tr>
+  <tr><td><code>hungerDecayOnFeed</code></td><td>0.35</td><td>Riduzione fame per clic Nutri. Valore rimasto da una versione precedente continua; il codice attuale usa <code>hungerInt - 1</code> (passo discreto).</td></tr>
+  <tr><td><code>sizeGainOnFeed</code></td><td>0.08</td><td>Crescita target per ogni cibo. Non attualmente applicata (il codice usa il sistema hunger-based), disponibile per estensioni.</td></tr>
+  <tr><td><code>maxSize</code></td><td>2.2</td><td>Dimensione massima. Scelto per non far uscire la creatura dall'inquadratura alla camera default (camZ=13.3).</td></tr>
+  <tr><td><code>sizeSmoothPerSec</code></td><td>3.0</td><td>Velocità di lerp verso targetSize. Con k=1-e<sup>-3*dt</sup>, raggiunge il 95% del target in ~1 secondo: abbastanza veloce da sembrare responsivo, abbastanza lento da apparire organico.</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>17. Controlli touch</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="block">
+  <div class="block-header">main.js — addEventListener touch (versione nativa)</div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">const s = 0.006;
+state.rotY += dx * s;
+state.rotX += dy * s;</div>
+    <div class="ann">Sensibilità touch: <span class="val">0.006</span> radianti per pixel. Con questo valore, trascinare su tutta la larghezza di uno schermo da ~400px produce una rotazione di ~2.4 rad (≈137°), che è una svolta sostanziale ma non eccessiva. Valori più alti renderebbero la creatura difficile da controllare con precisione.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">state.rotX = Math.max(-0.6, Math.min(0.9, state.rotX));</div>
+    <div class="ann">Clamp della rotazione verticale: <span class="val">-0.6</span> rad (≈-34°, guarda da sotto) e <span class="val">0.9</span> rad (≈51°, guarda dall'alto). Senza questo limite, l'utente potrebbe ruotare completamente sopra o sotto la scena, perdendo l'orientamento. Il limite superiore (0.9) è più permissivo per permettere una vista dall'alto più ampia.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">{ passive: false }</div>
+    <div class="ann">Opzione obbligatoria per poter chiamare <code>e.preventDefault()</code> dentro l'handler touch. I browser moderni registrano i listener touch come "passivi" di default (per ottimizzare lo scroll): questo flag dice esplicitamente che l'handler può bloccare il comportamento default.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>18. Controlli tastiera</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="block">
+  <div class="block-header">main.js — keydown con jQuery</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const KEYBOARD_ROTATION_SPEED = 0.05;</div>
+    <div class="ann">Radianti per pressione tasto: <span class="val">0.05</span> rad ≈ 2.9° per pressione. Tenendo premuta la freccia a ~60 pressioni/secondo si ottiene ~3 rad/s. Valore simile alla rotazione auto (<code>0.9 rad/s</code>) ma più rapido per consentire controllo manuale veloce.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">$(document).on('keydown', (e) => { ... e.preventDefault(); });</div>
+    <div class="ann"><code>e.preventDefault()</code> blocca lo scroll della pagina causato dai tasti freccia. Senza di esso, premere "Giù" scorrebba la pagina invece di ruotare la scena.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>19. Pulsanti Nutri e Conforta</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="block">
+  <div class="block-header">main.js — gestori pulsanti</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">$('#feedBtn').on('click', () => {
+  state.hungerInt = state.hungerInt - 1;
+  state.hunger = clamp01(state.hungerInt / 20);
+});</div>
+    <div class="ann">Ogni clic riduce la fame di 1 unità (un passo discreto). La scelta di un singolo passo invece di un reset completo bilancia il gameplay: serve tanta interazione quanta ne accumula la fame. <code>clamp01</code> impedisce che <code>hunger</code> diventi negativo se si clicca quando la creatura è già sazia.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">$('#cheerBtn').on('click', () => {
+  state.moodLevel = Math.max(0, state.moodLevel - 1);
+  state.nextMoodAtMs = Date.now() + 5000;
+});</div>
+    <div class="ann">Confortare resetta anche il timer del prossimo peggioramento umore (+5000ms). Questo premia l'interazione: non solo migliora l'umore di uno step, ma "resetta l'orologio" del degrado successivo, dando alla creatura un momento di respiro.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>20. Pannello dat.GUI</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="block">
+  <div class="block-header">main.js — dat.GUI setup</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">if (window.dat && dat.GUI) { const gui = new dat.GUI(); }</div>
+    <div class="ann">Controllo di disponibilità: se dat.GUI non è caricato il codice continua a funzionare senza il pannello. La GUI è uno strumento di sviluppo opzionale, non una dipendenza critica.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">gui.add(controls, 'rotY', -Math.PI * 2, Math.PI * 2).step(0.01);</div>
+    <div class="ann">Range rotazione Y: da <span class="val">-2π</span> a <span class="val">+2π</span> (un giro completo in ciascuna direzione). Lo step <span class="val">0.01</span> rad (≈0.57°) è abbastanza fine da permettere posizionamenti precisi senza rendere lo slider difficile da usare.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">gui.add(controls, 'rotX', -0.6, 0.9).step(0.01);</div>
+    <div class="ann">Range coincide con i clamp del touch: <span class="val">-0.6</span> e <span class="val">0.9</span>. Coerenza importante: lo slider GUI e il trascinamento touch devono comportarsi in modo identico per non confondere chi usa entrambi.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">gui.add(controls, 'camZ', 1, 20).step(0.1);</div>
+    <div class="ann">Minimo <span class="val">1</span> per non andare dentro la scena (near plane = 0.1). Massimo <span class="val">20</span>: la scena si vede ancora ma la creatura è piccola. Far plane = 100 quindi non c'è clipping a questi valori.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>21. createSphereMesh e createTexturedSphereMesh</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<p>Due generatori procedurali di sfere. Il primo è per sole e luna (solo posizioni), il secondo per il pianeta (posizioni + normali + UV).</p>
+
+<div class="block">
+  <div class="block-header">main.js — generatori sfere procedurali</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">for (let lat = 0; lat < latBands; lat++) {
+  const t0 = (lat / latBands) * Math.PI;
+  const t1 = ((lat + 1) / latBands) * Math.PI;</div>
+    <div class="ann">Suddivisione della sfera in <em>bande latitudinali</em> (da polo a polo). Ogni banda va da un angolo theta0 a theta1, entrambi nell'intervallo [0, π]. Il valore π è il range completo dell'angolo polare.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">function sph(r, theta, phi) {
+  const sinT = Math.sin(theta);
+  return [
+    r * sinT * Math.cos(phi),
+    r * Math.cos(theta),
+    r * sinT * Math.sin(phi)
+  ];
+}</div>
+    <div class="ann">Conversione da coordinate sferiche a cartesiane: X = r·sinθ·cosφ, Y = r·cosθ, Z = r·sinθ·sinφ. Questa formula è la definizione standard delle coordinate sferiche. Y è l'asse verticale (convenzione WebGL/OpenGL con Y verso l'alto).</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const sunMesh  = createSphereMesh(1.0, 20, 20);
+const moonMesh = createSphereMesh(1.0, 16, 16);</div>
+    <div class="ann">Sole: <span class="val">20×20</span> bande = 2400 triangoli — abbastanza risoluto da sembrare rotondo. Luna: <span class="val">16×16</span> = 1536 triangoli — leggermente meno dettagliata perché più piccola a schermo (dimensione scala <span class="val">0.28</span> vs <span class="val">0.35</span> del sole).</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const planetMesh = createTexturedSphereMesh(1.0, 24, 24);</div>
+    <div class="ann">Il pianeta usa <span class="val">24×24</span> bande (2304 quad = 4608 triangoli): più dettagliato perché la texture richiede sufficiente densità di UV per campionare correttamente. Con meno suddivisioni la texture apparirebbe distorta vicino ai poli.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const invLen = 1.0 / (Math.hypot(p[0], p[1], p[2]) || 1.0);</div>
+    <div class="ann">Calcola l'inversa della lunghezza del vettore (evitando la divisione per zero con <code>|| 1.0</code>). Per una sfera di raggio 1.0 il vettore è già normalizzato, ma questo calcolo è corretto per qualsiasi raggio.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>22. Funzione init() — caricamento asincrono asset</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="block">
+  <div class="block-header">main.js — IIFE asincrona di inizializzazione</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">(async function init() { try { ... } catch(err) { ... } })();</div>
+    <div class="ann">IIFE (Immediately Invoked Function Expression) async: si chiama da sola al caricamento della pagina. Il blocco try/catch cattura qualsiasi errore (rete, parse, shader) e mostra un messaggio leggibile invece di un errore silenzioso nella console.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const mtlText = await loadText("assets/creature.mtl");
+const materials = parseMTL(mtlText);
+const objText   = await loadText("assets/creature.obj");
+mesh = parseOBJ(objText, materials);</div>
+    <div class="ann">Il file MTL viene caricato <em>prima</em> dell'OBJ. Necessario perché il parser OBJ ha bisogno dei materiali durante il parsing delle facce (<code>usemtl</code>). Se si caricassero in ordine inverso, tutti i colori sarebbero il grigio di default.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">for (const matName in grassMaterials) {
+  grassMaterials[matName].kd = [0.2, 0.6, 0.15];
+}</div>
+    <div class="ann">Sovrascrive il colore di tutti i materiali dell'erba con verde scuro [<span class="val">0.2</span>, <span class="val">0.6</span>, <span class="val">0.15</span>]. La texture dell'erba già porta la variazione visiva; il colore materiale serve come base moltiplicativa per l'illuminazione. Il verde specifico è calibrato per darsi con i colori della luce diurna.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">gl.enable(gl.DEPTH_TEST);
+gl.disable(gl.CULL_FACE);</div>
+    <div class="ann"><code>DEPTH_TEST</code>: attiva il depth buffer — ogni pixel scritto viene confrontato con la profondità precedente; vince il più vicino. Senza questo, gli oggetti si sovrapporrebbero in ordine di draw call invece che per distanza reale. <code>CULL_FACE</code> disabilitato: mostra entrambi i lati dei poligoni — necessario per i fili d'erba che sono quad a singolo layer (senza face culling mostrerebbero solo la faccia verso la camera).</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>23. computeBounds — calcolo bounding box</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="block">
+  <div class="block-header">main.js — computeBounds</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">let minX = Infinity, maxX = -Infinity; ...</div>
+    <div class="ann">Inizializzare con <code>Infinity</code> e <code>-Infinity</code> garantisce che il primo valore incontrato (qualunque esso sia) diventi immediatamente il nuovo minimo o massimo. È il pattern standard per trovare min/max in un passaggio unico senza assumere nulla sull'intervallo dei dati.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const radius = Math.max(dx, dy, dz) * 0.5;</div>
+    <div class="ann">Raggio della bounding sphere: metà della dimensione massima tra le tre direzioni. Usato per posizionare il fondo della creatura esattamente sull'erba: <code>bounds.minY * scale</code> è l'offset dal centro del modello al suo piede inferiore.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>24. Ciclo di animazione — loop()</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="block">
+  <div class="block-header">main.js — loop principale</div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">const t = tsMs * 0.001;</div>
+    <div class="ann">Conversione millisecondi → secondi. <span class="val">0.001</span> = 1/1000. I timestamp di <code>requestAnimationFrame</code> sono in millisecondi; tutto il codice fisico usa secondi perché le velocità (rad/s, unità/s) sono più intuibili in quella unità.</div>
+  </div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">const dt = Math.min(0.05, Math.max(0.0001, t - state.lastT));</div>
+    <div class="ann">Delta time con doppio clamp. Massimo <span class="val">0.05</span> s (= 20 fps minimo effettivo): se il tab è in background e i frame si accumulano, senza questo clamp un singolo dt di 5 secondi causerebbe un salto enorme nello stato (fame che avanza di cinque volte, creatura che scala istantaneamente). Minimo <span class="val">0.0001</span> s: evita divisioni per zero in eventuali calcoli basati su 1/dt.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">update(dt);
+render();
+requestAnimationFrame(loop);</div>
+    <div class="ann">Separazione update/render: la logica di gioco (update) è indipendente dalla logica grafica (render). La coda al prossimo frame viene sempre richesta in fondo, anche dopo un eventuale errore nel render, per mantenere il loop attivo.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">if (webglUtils.resizeCanvasToDisplaySize(canvas, window.devicePixelRatio)) {
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}</div>
+    <div class="ann"><code>devicePixelRatio</code> è 2 su schermi Retina/HiDPI: il canvas fisico è il doppio dei CSS pixel. <code>resizeCanvasToDisplaySize</code> adatta le dimensioni del buffer di rendering al display reale, evitando rendering sfocato su display ad alta densità. <code>gl.viewport()</code> va aggiornato di conseguenza per mappare correttamente clip space → pixel fisici.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>25. Funzione update() — logica di gioco</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="block">
+  <div class="block-header">main.js — update(dt)</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const steps = Math.floor((nowMs - state.nextHungerAtMs) / 5000) + 1;
+state.hungerInt = Math.min(HUNGER_MAX, state.hungerInt + steps);</div>
+    <div class="ann">Sistema a step: non incrementa per frazione di secondi, ma conta quanti step da 5000ms sono passati. Questo garantisce che anche se il browser perde molti frame (tab in background) la fame avanzi esattamente il numero corretto di passi. Il <code>+1</code> aggiunge lo step corrente al conto degli step passati.</div>
+  </div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">const MIN_SIZE = 0.15;
+const MAX_SIZE = 0.35;
+state.targetSize = lerp(MIN_SIZE, MAX_SIZE, 1 - sizeHunger);</div>
+    <div class="ann"><span class="val">MIN_SIZE = 0.15</span>: la creatura al massimo della fame è molto piccola (15% della scala modello). <span class="val">MAX_SIZE = 0.35</span>: a stomaco pieno è al 35% della scala. Questi valori tengono la creatura visibile e riconoscibile in entrambi gli stati senza essere troppo grande da occupare tutto lo schermo o troppo piccola da non vederla. <code>1 - sizeHunger</code> inverte la mappatura: fame=1 → size=MIN, fame=0 → size=MAX.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const k = 1 - Math.exp(-RATES.sizeSmoothPerSec * dt);
+state.size = lerp(state.size, state.targetSize, k);</div>
+    <div class="ann">Smoothing esponenziale a frame-rate indipendente. La formula <code>k = 1 - e^(-rate·dt)</code> è equivalente matematicamente a un filtro low-pass: garantisce la stessa velocità di convergenza indipendentemente dal frame rate. Con rate=3.0: il 95% del cambiamento avviene in ~1 secondo a qualsiasi fps.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const hungerPercent = Math.min(100, (state.hungerInt / HUNGER_MAX) * 100);
+$(hungerBar).css({ width: hungerPercent + '%', backgroundPosition: hungerPercent + '% 0' });</div>
+    <div class="ann">La larghezza della barra è la fame in percentuale. <code>backgroundPosition</code> sposta anche la posizione del gradiente di sfondo della barra in modo proporzionale, creando un effetto visivo dove il colore del gradiente "segue" il riempimento.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const clockHours = (dayPhase * 24.0 + CLOCK_START_HOUR) % 24.0;</div>
+    <div class="ann">Converte la fase del ciclo [0,1] in ore [0,24], poi aggiunge l'offset di partenza (<span class="val">8.0</span> = 8:00) con modulo 24 per gestire il wrap-around. La moltiplicazione per <span class="val">24.0</span> scala un giorno in-game a 24 ore visualizzate.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">if (clockHours >= 5.0 && clockHours < 8.0)  periodLabel = 'Dawn';
+else if (clockHours >= 8.0 && clockHours < 17.0) periodLabel = 'Day';
+else if (clockHours >= 17.0 && clockHours < 20.0) periodLabel = 'Dusk';</div>
+    <div class="ann">Fasce orarie: alba 5-8, giorno 8-17, crepuscolo 17-20, notte per il resto. Corrispondono approssimativamente a orari reali del sole alle medie latitudini. L'orario 8 e 17 (9 ore di giorno) è leggermente più corto del giorno estivo reale ma più intuitivo.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">state.rotY += dt * 0.9;</div>
+    <div class="ann">Velocità auto-rotazione: <span class="val">0.9</span> rad/s ≈ 51°/s → un giro completo ogni ~7 secondi. Abbastanza lento da apprezzare tutti i lati della creatura, abbastanza rapido da non sembrare fermo.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>26. Funzione render() — pipeline di disegno</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
+<h3>26.1 Camera e proiezione</h3>
+<div class="block">
+  <div class="block-header">main.js — setup camera</div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">const projectionMatrix = mat4Perspective(Math.PI / 4, aspectRatio, 0.1, 100.0);</div>
+    <div class="ann">
+      <strong>Parametri frustum motivati:</strong><br>
+      <code>Math.PI / 4</code> = <span class="val">45°</span> fov verticale: angolo di campo standard per applicazioni 3D. Più stretto di 60° (meno distorsione prospettica), più largo di 30° (campo visivo sufficientemente ampio).<br>
+      <span class="val">0.1</span> near plane: oggetti più vicini di 0.1 unità vengono clippati. Troppo piccolo causa problemi di precisione depth (z-fighting); 0.1 è il compromesso comune.<br>
+      <span class="val">100.0</span> far plane: tutto entro 100 unità è visibile. Il pianeta più lontano è a circa 30 unità (√(16²+8.5²+26²)≈32), quindi 100 ha margine sufficiente.
+    </div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const camEye  = [state.camX, state.camY, state.camZ]; // default [0,0,13.3]
+const camLook = [0, 0, 0];
+const camUp   = [0, 1, 0];</div>
+    <div class="ann">La camera guarda sempre verso l'origine [0,0,0] (dove si trova la creatura). <code>camUp = [0,1,0]</code> definisce la direzione "su" della camera come l'asse Y verticale — standard OpenGL/WebGL.</div>
+  </div>
+</div>
+
+<h3>26.2 Orbita sole e luna</h3>
+<div class="block">
+  <div class="block-header">main.js — orbita celeste</div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">const orbitAngle = dayPhase * Math.PI * 2.0 + Math.PI * 0.5;
+const moonAngle  = orbitAngle + Math.PI;</div>
+    <div class="ann"><code>dayPhase * 2π</code> mappa [0,1] su [0,2π] per un ciclo completo. <code>+ π/2</code> sfasa l'orbita di 90° così che l'alba (fase=0) inizia con il sole appena sull'orizzonte est invece che nel punto più alto. <code>moonAngle = orbitAngle + π</code> mette la luna esattamente all'opposto del sole: quando il sole tramonta, la luna sorge.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const sunBasePos = [
+  Math.cos(orbitAngle) * ORBIT_RADIUS_X,
+  ORBIT_CENTER_Y + Math.sin(orbitAngle) * ORBIT_RADIUS_Y,
+  2.4
+];</div>
+    <div class="ann">Il sole orbita in un piano leggermente inclinato verso la camera (Z=<span class="val">2.4</span>). Questo evita che il sole passasse esattamente dietro la scena ad ogni ciclo, rendendolo sempre parzialmente visibile. La Z positiva porta il sole in primo piano durante il giorno.</div>
+  </div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">const dayFactor = clamp01((sunBasePos[1] + ORBIT_RADIUS_Y * 0.15) / (ORBIT_RADIUS_Y * 1.15));</div>
+    <div class="ann">Fattore giorno [0,1] basato sull'altezza Y del sole. Il termine <code>ORBIT_RADIUS_Y * 0.15</code> sposta la soglia dell'alba/tramonto leggermente <em>sotto</em> lo zero: il cielo comincia a illuminarsi prima che il sole emerga visivamente dall'orizzonte, simulando la luce diffusa atmosferica. Il denominatore <code>ORBIT_RADIUS_Y * 1.15</code> normalizza il range per ottenere un fattore che raggiunge effettivamente 1.0 al massimo dell'orbita.</div>
+  </div>
+</div>
+
+<h3>26.3 Colori dinamici del ciclo giorno/notte</h3>
+<div class="block">
+  <div class="block-header">main.js — colori cielo e luci</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const daySky   = [0.44, 0.62, 0.86];
+const nightSky = [0.04, 0.06, 0.12];</div>
+    <div class="ann"><code>daySky</code>: azzurro chiaro (R basso, G medio, B alto — cielo sereno). <code>nightSky</code>: quasi nero con leggera tinta blu [<span class="val">0.04</span>, <span class="val">0.06</span>, <span class="val">0.12</span>] — il blu notte è leggermente sopra il nero puro per dare profondità senza essere completamente piatto.</div>
+  </div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">const sunLightColor = [
+  1.05 * dayFactor,
+  0.95 * dayFactor,
+  0.78 * dayFactor
+];</div>
+    <div class="ann">Colore luce solare: R=<span class="val">1.05</span>, G=<span class="val">0.95</span>, B=<span class="val">0.78</span> moltiplicati per dayFactor. I valori R e G leggermente sbilanciati danno alla luce solare una tinta calda giallo-arancio, mentre B=0.78 riduce il blu (caratteristica della luce diurna reale). Tutti moltiplicati per dayFactor si azzerano di notte.</div>
+  </div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">const moonLightColor = [
+  0.24 * nightFactor,
+  0.34 * nightFactor,
+  0.54 * nightFactor
+];</div>
+    <div class="ann">Luce lunare: tinta fredda blu-viola (R&lt;G&lt;B). <span class="val">0.24</span>, <span class="val">0.34</span>, <span class="val">0.54</span> sono tutti under 0.6 (luce debole rispetto al sole che arriva a 1.05). La luna di notte illumina debolmente con luce fredda — sensazione esteticamente appropriata e coerente con la percezione visiva reale.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const ambientColor = [
+  lerp(0.06, 0.22, dayFactor),
+  lerp(0.07, 0.24, dayFactor),
+  lerp(0.10, 0.28, dayFactor)
+];</div>
+    <div class="ann">Luce ambientale: interpolata tra notte [<span class="val">0.06</span>, <span class="val">0.07</span>, <span class="val">0.10</span>] e giorno [<span class="val">0.22</span>, <span class="val">0.24</span>, <span class="val">0.28</span>]. Di notte l'ambiente è molto scuro ma non zero (le stelle illuminano leggermente). Il giorno è chiaramente illuminato. I valori di giorno hanno più blu che rosso per il cielo blu diffuso.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const fillLightColor = [
+  lerp(0.20, 0.06, dayFactor),
+  lerp(0.24, 0.07, dayFactor),
+  lerp(0.32, 0.10, dayFactor)
+];</div>
+    <div class="ann">Fill light invertita rispetto all'ambiente: di notte è più intensa [<span class="val">0.20</span>, <span class="val">0.24</span>, <span class="val">0.32</span>] con tinta blu-viola (simula la luce del cielo notturno vista dal basso). Di giorno si abbassa [<span class="val">0.06</span>, <span class="val">0.07</span>, <span class="val">0.10</span>] perché la luce solare diretta già illumina tutto. L'inversione evita che la fill light e la sun light si sommino in modo eccessivo di giorno.</div>
+  </div>
+</div>
+
+<h3>26.4 Creatura: scala, posizionamento e animazione idle</h3>
+<div class="block">
+  <div class="block-header">main.js — matrice modello creatura</div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const planeY = -1.5;
+const grassSurfaceY = planeY + 0.8;</div>
+    <div class="ann"><code>planeY = -1.5</code>: il centro del piano dell'erba è a -1.5 unità sotto l'origine. <code>+ 0.8</code>: stima dell'altezza della superficie erbosa (altezza modello erba ~10 unità × scala 0.04 × rotazione = ~0.8 unità verticali). La creatura si appoggia a questa altezza stimata.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const creatureBottomOffset = bounds.minY * meshScale;</div>
+    <div class="ann">Il minY dei bounds è la coordinata Y del punto più basso del modello in coordinate modello. Moltiplicato per la scala attuale dà la distanza dal centro al piede inferiore in coordinate mondo. Sottrarlo dalla posizione Y mette i piedi esattamente sull'erba anziché il centro del modello.</div>
+  </div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">const bobAmount     = 0.02;  // unità
+const bobSpeed      = 2.0;   // rad/s
+const breatheAmount = 0.015; // percentuale scala
+const breatheSpeed  = 1.5;   // rad/s</div>
+    <div class="ann">
+      <strong>Parametri animazione idle motivati:</strong><br>
+      <code>bobAmount = 0.02</code>: oscillazione di 2 cm in scala mondo — percettibile ma non drammatica. Troppo alta (>0.1) sembrerebbe un salto, troppo bassa (&lt;0.005) sarebbe invisibile.<br>
+      <code>bobSpeed = 2.0 rad/s</code>: ~0.3 Hz → un'oscillazione ogni ~3 secondi. Ritmo simile a un respiro tranquillo o galleggiamento.<br>
+      <code>breatheAmount = 0.015</code>: scala ±1.5% — appena visibile, simula l'espansione del corpo durante la respirazione.<br>
+      <code>breatheSpeed = 1.5 rad/s</code>: leggermente più lento del bob per un ritmo asincrono che evita la sensazione meccanica di movimento perfettamente sincronizzato.
+    </div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const bobOffset    = Math.sin(idleTime * bobSpeed) * bobAmount;
+const breatheScale = 1.0 + Math.sin(idleTime * breatheSpeed) * breatheAmount;</div>
+    <div class="ann">Il seno oscilla tra -1 e +1 con periodo 2π/speed. Moltiplicato per l'ampiezza dà l'offset effettivo. Il <code>1.0 +</code> davanti al seno del respiro trasforma l'oscillazione da [-1,+1] a [0.985, 1.015], cioè una scala che oscilla intorno a 1.0.</div>
+  </div>
+</div>
+
+<h3>26.5 Erba — piano texturizzato</h3>
+<div class="block">
+  <div class="block-header">main.js — trasformazione piano erba</div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">const grassScale = 0.04;
+const rotX90 = mat4RotateX(-Math.PI / 2);
+const translateM = mat4Translate(0, planeY, 0);
+const grassModel = mat4Mul(translateM, mat4Mul(rotX90, scaleM));</div>
+    <div class="ann">
+      <strong>Trasformazioni in ordine (applicato da destra a sinistra):</strong><br>
+      1. <code>scaleM (0.04)</code>: il modello OBJ dell'erba ha coordinate nell'ordine delle centinaia di unità; scalarlo a 0.04 lo porta a ~5-6 unità nel piano XY.<br>
+      2. <code>rotX90 (-π/2)</code>: il piano OBJ è nel piano XY (orizzontale rispetto a Blender con Z in alto). Ruotare di -90° attorno a X fa giacere il piano nel piano XZ (orizzontale rispetto a WebGL con Y in alto).<br>
+      3. <code>translateM (0, -1.5, 0)</code>: sposta il piano al livello del terreno.
+    </div>
+  </div>
+</div>
+
+<h3>26.6 Pianeta distante</h3>
+<div class="block">
+  <div class="block-header">main.js — posizione e rotazione pianeta</div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">const planetScale = 2.6;
+const planetSpin  = mat4RotateY(state.t * 0.12);
+const planetModel = mat4Mul(
+  mat4Translate(-16.0, 8.5, -26.0),
+  mat4Mul(planetSpin, mat4Scale(2.6, 2.6, 2.6))
+);</div>
+    <div class="ann">
+      <strong>Valori numerici motivati:</strong><br>
+      Posizione <span class="val">[-16, 8.5, -26]</span>: il pianeta è lontano a sinistra e in alto (X=-16), relativamente alto (Y=8.5) per essere visibile sopra l'orizzonte, profondo in Z=-26 per dare sensazione di distanza. Con near=0.1 e far=100.0, questa distanza è ben dentro il frustum.<br>
+      Scala <span class="val">2.6</span>: la sfera di raggio 1.0 × 2.6 = raggio 2.6 unità. A distanza ~32 unità appare come un piccolo disco, convincente come pianeta di sfondo.<br>
+      Velocità rotazione <span class="val">0.12 rad/s</span>: un giro ogni ~52 secondi, quasi uguale alla durata del giorno (60s) — deliberatamente lento per sembrare astronomicamente plausibile.
+    </div>
+  </div>
+</div>
+
+<h3>26.7 Sole e luna — sfera emissiva</h3>
+<div class="block">
+  <div class="block-header">main.js — rendering sole e luna</div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">const sunScale  = 0.35;
+const moonScale = 0.28;</div>
+    <div class="ann">Sole <span class="val">0.35</span>, luna <span class="val">0.28</span>: la luna è ~20% più piccola del sole — approssimazione della percezione visiva reale (nel cielo reale il sole e la luna appaiono quasi identici per dimensioni angolari, ma la luna leggermente più piccola in questa scena stilizzata è una scelta artistica).</div>
+  </div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">gl.uniform3f(sunUColor,
+  lerp(0.55, 1.0,  dayFactor),
+  lerp(0.55, 0.92, dayFactor),
+  lerp(0.65, 0.52, dayFactor)
+);</div>
+    <div class="ann">Colore visivo del sole interpolato tra notte [<span class="val">0.55</span>, <span class="val">0.55</span>, <span class="val">0.65</span>] (bianco-blu, come il sole all'orizzonte) e giorno pieno [<span class="val">1.0</span>, <span class="val">0.92</span>, <span class="val">0.52</span>] (giallo-bianco brillante). Di notte il sole appare biancastro perché è sotto l'orizzonte ma lo shader non lo sconde — il modello di visibilità è lasciato al ciclo orbitale.</div>
+  </div>
+  <div class="line hl">
+    <div class="ln">—</div>
+    <div class="src">gl.uniform3f(sunUColor,  // luna
+  lerp(0.65, 0.25, dayFactor),
+  lerp(0.70, 0.32, dayFactor),
+  lerp(0.82, 0.45, dayFactor)
+);</div>
+    <div class="ann">Colore luna: di notte [<span class="val">0.65</span>, <span class="val">0.70</span>, <span class="val">0.82</span>] — bianco freddo con tinta blu (luce lunare riflessa). Di giorno [<span class="val">0.25</span>, <span class="val">0.32</span>, <span class="val">0.45</span>] — più scuro e quasi invisibile nel cielo diurno. Il blue domina in entrambi i casi per la natura fredda della luce lunare.</div>
+  </div>
+  <div class="line">
+    <div class="ln">—</div>
+    <div class="src">const err = gl.getError();
+if (err !== 0) console.warn('GL error after draw:', err);</div>
+    <div class="ann">Controllo errori WebGL alla fine di ogni frame. <code>gl.getError()</code> restituisce <span class="val">0</span> (= <code>gl.NO_ERROR</code>) se tutto va bene. Chiamarla ogni frame ha un costo minimo di prestazioni ma permette di identificare rapidamente errori GPU durante lo sviluppo (buffer non collegati, uniform mancanti, ecc.).</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2>27. Riepilogo di tutti i valori numerici chiave</h2>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<table class="nums">
+  <tr><th>Valore</th><th>Dove appare</th><th>Perché quel numero</th></tr>
+  <tr><td><code>0.001</code></td><td>tsMs * 0.001</td><td>Conversione ms → secondi (1/1000)</td></tr>
+  <tr><td><code>0.05</code> / <code>0.0001</code></td><td>clamp dt</td><td>Max dt = 20fps equiv., min dt evita /0</td></tr>
+  <tr><td><code>Math.PI/4</code></td><td>mat4Perspective</td><td>45° fov: standard 3D, bassa distorsione</td></tr>
+  <tr><td><code>0.1</code> / <code>100.0</code></td><td>near / far plane</td><td>Near evita z-fighting, far copre tutta la scena</td></tr>
+  <tr><td><code>13.3</code></td><td>state.camZ</td><td>Distanza empirica per inquadrare bene la creatura a fov 45°</td></tr>
+  <tr><td><code>0.2</code></td><td>state.rotX iniziale</td><td>~11° dall'alto: angolo visivo più naturale per un personaggio a terra</td></tr>
+  <tr><td><code>60.0</code></td><td>DAY_DURATION_SEC</td><td>1 giorno = 1 minuto reale</td></tr>
+  <tr><td><code>7.0</code> / <code>5.5</code></td><td>ORBIT_RADIUS_X/Y</td><td>Orbita ellittica che si adatta al campo visivo della camera</td></tr>
+  <tr><td><code>0.15</code> / <code>0.35</code></td><td>MIN_SIZE / MAX_SIZE</td><td>Creatura visibile e riconoscibile in entrambi gli estremi di fame</td></tr>
+  <tr><td><code>3.0</code></td><td>RATES.sizeSmoothPerSec</td><td>95% convergenza in ~1 secondo (lerp esponenziale)</td></tr>
+  <tr><td><code>5000</code></td><td>nextHungerAtMs</td><td>Un passo di fame ogni 5 secondi reali</td></tr>
+  <tr><td><code>20</code></td><td>HUNGER_MAX / MOOD_MAX</td><td>Scala discreta a 20 passi: abbastanza granulare per bilanciamento gameplay</td></tr>
+  <tr><td><code>0.006</code></td><td>sensibilità touch</td><td>~137° di rotazione per trascinamento full-screen — equilibrato</td></tr>
+  <tr><td><code>0.05</code></td><td>KEYBOARD_ROTATION_SPEED</td><td>~3°/pressione, ~180°/s a 60fps — controllo preciso</td></tr>
+  <tr><td><code>0.9</code></td><td>auto-rotate rad/s</td><td>Un giro completo ogni ~7 secondi</td></tr>
+  <tr><td><code>0.04</code></td><td>grassScale</td><td>Riduce il modello OBJ da ~140 unità a ~5 unità in scena</td></tr>
+  <tr><td><code>2.6</code></td><td>planetScale</td><td>Pianeta di raggio 2.6 unità a ~32 unità di distanza = disco convincente</td></tr>
+  <tr><td><code>0.12</code></td><td>rotazione pianeta</td><td>Un giro ogni ~52s ≈ durata del giorno in-game</td></tr>
+  <tr><td><code>0.35</code> / <code>0.28</code></td><td>scala sole / luna</td><td>Luna ~20% più piccola del sole: scelta artistica stilizzata</td></tr>
+  <tr><td><code>0.02</code> / <code>2.0</code></td><td>bob amount/speed</td><td>Oscillazione sottile (2cm) a ritmo ~0.3Hz — animazione idle naturale</td></tr>
+  <tr><td><code>0.015</code> / <code>1.5</code></td><td>breathe amount/speed</td><td>Scala ±1.5%, frequenza leggermente asincrona dal bob</td></tr>
+  <tr><td><code>0.299/0.587/0.114</code></td><td>luminanza BT.601</td><td>Pesi percettivi dell'occhio umano per R,G,B — standard per desaturazione</td></tr>
+  <tr><td><code>0.5</code></td><td>soglia alpha discard</td><td>Punto medio di trasparenza: sopra = opaco, sotto = trasparente</td></tr>
+  <tr><td><code>2.4</code></td><td>hungerTint rosso</td><td>Saturazione rossa sopra 1.0 per enfatizzare visivamente la fame</td></tr>
+  <tr><td><code>0.35</code></td><td>mix desaturazione sad</td><td>Max 35% grigio alla tristezza massima — non troppo da perdere i colori</td></tr>
+  <tr><td><code>0.12</code></td><td>orbitAngle offset (π/2 * dayFactor)</td><td>Alba a fase=0 invece di mezzogiorno</td></tr>
+  <tr><td><code>24</code></td><td>latBands/lonBands pianeta</td><td>Risoluzione minima per texture UV senza distorsione visibile ai poli</td></tr>
+  <tr><td><code>20</code> / <code>16</code></td><td>bande sole/luna</td><td>Rotonde visivamente, meno poligoni del pianeta perché senza texture</td></tr>
+</table>
+
+<hr>
+<p style="color:#6b7280;font-size:.9rem;text-align:center">Fine analisi — <code>main.js</code> Tamagotchi 3D in WebGL</p>
+
+</main>
+</body>
+</html>

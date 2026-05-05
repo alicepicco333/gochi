@@ -1,0 +1,354 @@
+﻿<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Relazione Tecnica - Tamagotchi 3D in WebGL</title>
+  <style>:root{--bg:#f7f8fb;--paper:#fff;--text:#1f2937;--border:#e5e7eb;--accent:#0f766e}*{box-sizing:border-box}body{margin:0;font-family:Georgia,"Times New Roman",serif;color:var(--text);background:linear-gradient(180deg,#eef2ff 0%,var(--bg) 40%)}main{max-width:980px;margin:32px auto;background:var(--paper);border:1px solid var(--border);border-radius:12px;padding:40px 48px;box-shadow:0 10px 30px rgba(0,0,0,.06)}h1,h2,h3{font-family:"Segoe UI",Tahoma,sans-serif;line-height:1.25;margin-top:1.4em}h1{font-size:2rem;margin-top:0}h2{font-size:1.45rem;border-bottom:1px solid var(--border);padding-bottom:6px}h3{font-size:1.15rem}p{font-size:1.03rem;line-height:1.7;margin:.8em 0;text-align:justify}ul,ol{margin:.6em 0 1em 1.3em;line-height:1.6}hr{border:0;border-top:1px solid var(--border);margin:1.4em 0}code{font-family:Consolas,Monaco,monospace;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;padding:1px 5px}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}</style>
+</head>
+<body>
+<main>
+<h1>Relazione Tecnica</h1>
+<h2>Progetto: Tamagotchi 3D in WebGL</h2>
+
+<hr>
+
+<h2>Frontespizio</h2>
+<p><strong>Titolo del progetto:</strong> Tamagotchi 3D in WebGL</p>
+<p><strong>Tipologia:</strong> Applicazione web interattiva real-time con grafica 3D</p>
+<p><strong>Ambito:</strong> Computer Graphics, Programmazione Web, Simulazione interattiva</p>
+<p><strong>Tecnologie principali:</strong> HTML5, CSS3, JavaScript, WebGL, GLSL</p>
+<p><strong>Librerie di supporto:</strong> dat.GUI, webgl-utils.js, m4.js, jQuery 3.6.0, mesh_utils.js, glm_utils.js</p>
+
+<hr>
+
+<h2>Indice</h2>
+<ol>
+<li>Introduzione e obiettivi</li>
+<li>Descrizione dell'applicazione e utilizzo</li>
+<li>Guida rapida: come eseguire il progetto</li>
+<li>Architettura del codice</li>
+<li>Librerie e strumenti usati
+<ul>
+<li>5.1 Perché non usare un engine completo</li>
+<li>5.2 m4.js — matematica 3D</li>
+<li>5.3 jQuery — gestione DOM</li>
+<li>5.4 mesh_utils.js e glm_utils.js — note di integrazione</li>
+</ul>
+</li>
+<li>Tutorial: pipeline WebGL passo-passo</li>
+<li>Funzionalita WebGL adottate</li>
+<li>Tutorial: sistema di stato Tamagotchi</li>
+<li>Tutorial: ciclo update/render</li>
+<li>Tutorial: shader e illuminazione</li>
+<li>Tutorial: gestione asset OBJ/MTL/texture</li>
+<li>Scelte tecniche e motivazioni</li>
+<li>Particolarita del progetto</li>
+<li>Prestazioni e robustezza</li>
+<li>Strategia di debug e validazione</li>
+<li>Miglioramenti consigliati</li>
+<li>Conclusioni</li>
+</ol>
+
+<hr>
+
+<h2>1. Introduzione e obiettivi</h2>
+<p>Il progetto realizza un Tamagotchi 3D direttamente nel browser, senza usare motori grafici ad alto livello. L'obiettivo principale e combinare una simulazione interattiva (fame, umore, crescita) con una pipeline grafica completa basata su WebGL puro. La scelta e stata fatta per mantenere il controllo diretto su shader, buffer, texture e flusso di rendering.</p>
+
+<h2>2. Descrizione dell'applicazione e utilizzo</h2>
+<p>L'app mostra una creatura 3D su un piano erboso. Nel tempo la fame aumenta e l'umore peggiora; l'utente puo intervenire con i pulsanti <em>Nutri</em> e <em>Conforta</em>. Sono presenti anche comandi touch e tastiera per ruotare la scena, e un pannello dat.GUI per controlli avanzati (camera, auto-rotazione, rotazioni manuali).</p>
+<ul>
+<li>Fame e umore a step discreti da 0 a 20.</li>
+<li>Dimensione della creatura aggiornata in modo continuo dalla fame.</li>
+<li>HUD con barre di stato, valore dimensione e orario.</li>
+<li>Ciclo giorno/notte con sole e luna orbitanti.</li>
+<li>Pianeta distante texturizzato con rotazione lenta su se stesso.</li>
+</ul>
+
+<h2>3. Guida rapida: come eseguire il progetto</h2>
+<p>Questa sezione e pensata come mini tutorial operativo.</p>
+<ol>
+<li>Apri la cartella del progetto in un editor (es. VS Code).</li>
+<li>Avvia un server locale statico dalla cartella del progetto.</li>
+<li>Apri nel browser la pagina <code>index.html</code> servita dal server locale.</li>
+<li>Verifica che vengano caricati modello creatura, erba e texture.</li>
+<li>Interagisci con i pulsanti e controlla che HUD e scena cambino in tempo reale.</li>
+</ol>
+<p>Nota importante: usare un server locale evita problemi di sicurezza del browser sul caricamento file (fetch di OBJ/MTL/texture).</p>
+
+<h2>4. Architettura del codice</h2>
+<p>L'architettura e organizzata in blocchi funzionali nel file principale:</p>
+<ol>
+<li>Utility matematiche (matrici/vettori).</li>
+<li>Shader GLSL (creatura, texture, emissivo).</li>
+<li>Caricamento e parsing asset (OBJ/MTL/texture).</li>
+<li>Creazione buffer GPU e collegamento attributi.</li>
+<li>Stato globale della simulazione.</li>
+<li>Game loop con separazione <code>update()</code> / <code>render()</code>.</li>
+</ol>
+<p>La separazione update-render e una scelta architetturale chiave: migliora leggibilita, facilita debug e riduce gli effetti collaterali tra logica e grafica.</p>
+
+<h3>4.1 Flusso ad alto livello</h3>
+<ol>
+<li>Inizializzazione del contesto WebGL e compilazione shader.</li>
+<li>Caricamento asincrono degli asset (creatura, erba, texture).</li>
+<li>Creazione buffer GPU una sola volta (fase setup).</li>
+<li>Avvio loop animazione.</li>
+<li>Per ogni frame: aggiornamento logica e poi rendering.</li>
+</ol>
+
+<h3>4.2 Separazione CPU/GPU (idea chiave)</h3>
+<p>Nel progetto la CPU prepara i dati (stato, matrici, parametri luce), mentre la GPU calcola la resa finale per vertice e per pixel. Questa separazione e fondamentale: la CPU gestisce la logica di gioco, la GPU gestisce il carico numerico del rendering.</p>
+<ul>
+<li>CPU: input utente, update fame/umore, costruzione matrici, set uniform.</li>
+<li>GPU: trasformazioni geometriche (vertex shader), illuminazione e colore finale (fragment shader).</li>
+</ul>
+
+<h2>5. Librerie e strumenti usati</h2>
+<p>Il progetto carica sei librerie esterne, ognuna con un ruolo preciso. La scelta di usare librerie specializzate invece di un unico engine permette di vedere chiaramente dove termina il codice custom e dove inizia il supporto esterno.</p>
+<ul>
+<li><strong>WebGL</strong>: rendering 3D low-level, nativo nel browser.</li>
+<li><strong>GLSL</strong>: linguaggio degli shader, compilato dalla GPU.</li>
+<li><strong>dat.GUI</strong>: pannello runtime per regolare parametri a caldo (rotazione, camera, auto-rotazione).</li>
+<li><strong>webgl-utils.js</strong>: helper di Google per ridurre boilerplate WebGL (<code>createProgramFromSources</code>, <code>createBufferFromTypedArray</code>, <code>resizeCanvasToDisplaySize</code>).</li>
+<li><strong>m4.js</strong>: libreria matematica 3D di Gregg Tavares; fornisce tutte le operazioni su matrici 4x4 e vettori 3D usate dal rendering.</li>
+<li><strong>jQuery 3.6.0</strong>: usato per le operazioni DOM (selezione elementi, gestione eventi, aggiornamento stili HUD).</li>
+<li><strong>mesh_utils.js</strong>: utilità per suddivisione di mesh (Catmull-Clark); caricata ma non attivamente usata nella pipeline corrente.</li>
+<li><strong>glm_utils.js</strong>: parser OBJ/MTL alternativo con struttura dati indicizzata; caricata ma non integrata nella pipeline corrente.</li>
+</ul>
+
+<h3>5.1 Perché non usare un engine completo</h3>
+<p>In un progetto didattico, WebGL puro obbliga a capire davvero attributi, uniform, matrici, draw call e stato GPU. È più lungo da sviluppare, ma insegna di più.</p>
+
+<h3>5.2 m4.js — matematica 3D</h3>
+<p>Tutte le funzioni matematiche custom (<code>mat4Mul</code>, <code>mat4Identity</code>, <code>mat4Translate</code>, <code>mat4Scale</code>, <code>mat4RotateX/Y</code>, <code>mat4Perspective</code>, <code>mat4TransformPoint</code>, <code>vec3Normalize</code>, <code>vec3Cross</code>, <code>vec3Sub</code>) sono state sostituite con <strong>wrapper</strong> di una riga che delegano alla libreria:</p>
+<ul>
+<li><code>mat4Mul(a, b)</code> → <code>m4.multiply(a, b)</code></li>
+<li><code>mat4Identity()</code> → <code>m4.identity()</code></li>
+<li><code>mat4Translate(tx, ty, tz)</code> → <code>m4.translation(tx, ty, tz)</code></li>
+<li><code>mat4Scale(sx, sy, sz)</code> → <code>m4.scaling(sx, sy, sz)</code></li>
+<li><code>mat4RotateY(rad)</code> → <code>m4.yRotation(rad)</code></li>
+<li><code>mat4RotateX(rad)</code> → <code>m4.xRotation(rad)</code></li>
+<li><code>mat4Perspective(...)</code> → <code>m4.perspective(...)</code></li>
+<li><code>mat4TransformPoint(m, p)</code> → <code>m4.transformPoint(m, p)</code></li>
+<li><code>vec3Normalize(v)</code> → <code>m4.normalize(v)</code></li>
+<li><code>vec3Cross(a, b)</code> → <code>m4.cross(a, b)</code></li>
+<li><code>vec3Sub(a, b)</code> → <code>m4.subtractVectors(a, b)</code></li>
+</ul>
+<p>Il vantaggio del pattern wrapper è che tutti i punti di chiamata nel codice restano invariati: solo le implementazioni cambiano. La funzione <code>mat4LookAt</code> usa <code>m4.inverse(m4.lookAt(...))</code> perché <code>m4.lookAt</code> restituisce la matrice camera, mentre WebGL richiede la sua inversa come matrice vista.</p>
+
+<h3>5.3 jQuery — gestione DOM</h3>
+<p>jQuery sostituisce le chiamate DOM native in tre categorie:</p>
+<ul>
+<li><strong>Selezione elementi</strong>: <code>document.getElementById('x')</code> diventa <code>$('#x')[0]</code>. Il <code>[0]</code> è necessario perché WebGL e le API canvas richiedono l'oggetto DOM nativo, non un wrapper jQuery.</li>
+<li><strong>Event listener</strong>: <code>addEventListener</code> su <code>window</code>, <code>document</code> e <code>canvas</code> diventano <code>$(target).on('evento', handler)</code>. Per gli eventi touch, <code>e.touches[0]</code> diventa <code>e.originalEvent.touches[0]</code> perché jQuery normalizza l'evento e nasconde l'oggetto nativo in <code>originalEvent</code>.</li>
+<li><strong>Aggiornamento HUD</strong>: <code>element.style.width = ...</code> e <code>element.textContent = ...</code> diventano <code>$(el).css(...)</code> e <code>$(el).text(...)</code>.</li>
+</ul>
+
+<h3>5.4 mesh_utils.js e glm_utils.js — note di integrazione</h3>
+<p>Queste due librerie sono caricate in <code>index.html</code> ma non sostituscono funzioni esistenti per ragioni strutturali:</p>
+<ul>
+<li><strong>glm_utils.js</strong> (<code>glmReadOBJ</code>/<code>glmReadMTL</code>): produce un formato indicizzato ad oggetti (<code>mesh.vert[i].x</code>, <code>mesh.face[i].vert[]</code>) incompatibile con la pipeline che richiede <code>Float32Array</code> piatti per i buffer GPU. Una conversione aggiungerebbe codice invece di ridurlo.</li>
+<li><strong>mesh_utils.js</strong>: fornisce suddivisione di mesh Catmull-Clark (<code>LoadSubdivMesh</code>, <code>subd_mesh</code>). Il progetto non usa suddivisione nel rendering corrente; la libreria è disponibile per eventuali estensioni future.</li>
+</ul>
+
+<h2>6. Tutorial: pipeline WebGL passo-passo</h2>
+<h3>6.1 Passo 1 - contesto grafico</h3>
+<p>Si prova prima WebGL2 e, se non disponibile, si usa WebGL1. Questo aumenta la compatibilita su dispositivi diversi.</p>
+
+<h3>6.2 Passo 2 - shader</h3>
+<p>Si definiscono sorgenti GLSL per tre casi: creatura, oggetti texturizzati, corpi emissivi. Dopo la definizione, vertex e fragment shader vengono compilati e linkati in un programma.</p>
+
+<h3>6.2.1 Cosa succede durante compile/link</h3>
+<ol>
+<li>Compile vertex shader: verifica sintassi GLSL lato vertice.</li>
+<li>Compile fragment shader: verifica sintassi GLSL lato pixel.</li>
+<li>Link programma: controlla compatibilita tra input/output dei due shader.</li>
+<li>Se compile/link fallisce, il log viene mostrato e il rendering si interrompe.</li>
+</ol>
+<p>Questa fase avviene una sola volta in init, non a ogni frame.</p>
+
+<h3>6.3 Passo 3 - dati geometria</h3>
+<p>Le mesh (OBJ parse) vengono convertite in typed array per posizioni, normali, colori e UV. Poi i dati vengono inviati alla GPU con buffer dedicati.</p>
+
+<h3>6.3.1 Layout degli attributi</h3>
+<p>Ogni attributo e in un buffer separato (approccio semplice e leggibile):</p>
+<ul>
+<li>posizione: 3 float per vertice (x,y,z)</li>
+<li>normale: 3 float per vertice (nx,ny,nz)</li>
+<li>colore: 3 float per vertice (r,g,b), quando previsto</li>
+<li>uv: 2 float per vertice (u,v), quando previsto</li>
+</ul>
+<p>Durante il draw, ogni buffer viene associato alla location dell'attributo shader con vertexAttribPointer.</p>
+
+<h3>6.4 Passo 4 - uniform dinamiche</h3>
+<p>Ogni frame si aggiornano uniform di trasformazione (MVP), luci e parametri legati allo stato (fame/umore).</p>
+
+<h3>6.4.1 Catena di trasformazione</h3>
+<p>Il punto del modello passa per tre spazi:</p>
+<ol>
+<li>Model space -> World space (matrice modello)</li>
+<li>World space -> View space (matrice camera)</li>
+<li>View space -> Clip space (matrice prospettica)</li>
+</ol>
+<p>In pratica si usa una MVP precomposta per efficienza e chiarezza.</p>
+
+<h3>6.5 Passo 5 - draw ordinato</h3>
+<p>Il render avviene in ordine logico: creatura, erba, pianeta distante, sole, luna. Questo ordine semplifica la lettura del codice e il debug visivo.</p>
+
+<h2>7. Funzionalita WebGL adottate</h2>
+<ol>
+<li>Fallback WebGL2 con compatibilita WebGL1.</li>
+<li>Shader multipli specializzati per materiale/scopo.</li>
+<li>Buffer GPU per posizioni, normali, colori e UV.</li>
+<li>Uniform dinamiche per matrici, luci e stato gameplay.</li>
+<li>Texture 2D con mipmap e filtri lineari.</li>
+<li><code>DEPTH_TEST</code> attivo per occlusione corretta.</li>
+<li>Cielo dinamico tramite <code>clearColor</code> interpolato.</li>
+</ol>
+
+<h2>8. Tutorial: sistema di stato Tamagotchi</h2>
+<h3>8.1 Struttura stato</h3>
+<p>Lo stato centrale contiene tempo, fame, umore, dimensione, rotazioni e camera. Questa scelta evita variabili sparse e rende il comportamento piu prevedibile.</p>
+
+<h3>8.1.1 Variabili temporali e stabilita</h3>
+<p>Lo stato include sia il tempo assoluto (t) sia il tempo del frame precedente. Questo permette di calcolare dt e mantenere le animazioni consistenti anche quando il frame rate varia.</p>
+
+<h3>8.2 Fame e umore a step</h3>
+<p>Entrambi usano scala 0-20 e avanzano nel tempo. La scelta a step rende il sistema facile da capire per l'utente e da bilanciare per lo sviluppatore.</p>
+
+<h3>8.2.1 Perche step discreti ma shader continui</h3>
+<p>La logica usa interi per evitare ambiguita di gameplay. La resa grafica converte poi questi interi in un intervallo 0..1, utile per interpolare colori e scale in modo fluido. Questo pattern separa bene regole di gioco e presentazione visiva.</p>
+
+<h3>8.3 Mapping stato -> resa visiva</h3>
+<ul>
+<li>Fame alta: creatura piu piccola.</li>
+<li>Umore peggiore: tinta e desaturazione nello shader.</li>
+</ul>
+<p>Questo rende i parametri di gioco leggibili anche senza guardare sempre l'HUD.</p>
+
+<h2>9. Tutorial: ciclo update/render</h2>
+<h3>9.1 Update</h3>
+<p>In <code>update(dt)</code> si calcolano nuovi valori di stato, si aggiornano barre HUD e si prepara il target size.</p>
+
+<h3>9.1.1 Uso del dt clampato</h3>
+<p>Il dt viene limitato entro un range massimo/minimo per evitare salti numerici quando il browser perde frame (es. tab in background). Senza clamp, le transizioni potrebbero diventare improvvise o instabili.</p>
+
+<h3>9.2 Render</h3>
+<p>In <code>render()</code> si applicano le trasformazioni, si aggiornano luci e matrici, poi si disegnano tutti gli oggetti della scena.</p>
+
+<h3>9.2.1 Ordine dei draw e coerenza visiva</h3>
+<p>L'ordine e scelto per leggibilita del codice e debug. Con depth test attivo, l'occlusione finale resta corretta anche con draw multipli, ma mantenere un ordine logico aiuta a isolare rapidamente eventuali problemi visivi.</p>
+
+<h3>9.3 Perche questa separazione funziona</h3>
+<p>Separare logica e grafica evita dipendenze confuse e permette di testare i due aspetti in modo piu semplice.</p>
+
+<h2>10. Tutorial: shader e illuminazione</h2>
+<h3>10.1 Shader della creatura</h3>
+<p>Combina colore base (vertex color), luci dinamiche e tint emotivo. E il cuore visivo del Tamagotchi.</p>
+
+<h3>10.1.1 Normali e luce diffusa</h3>
+<p>La componente diffusa dipende dal prodotto scalare tra normale e direzione luce. Se il valore e negativo, viene clampato a 0: questo evita illuminazione sul lato opposto alla sorgente.</p>
+
+<h3>10.2 Shader texturizzato</h3>
+<p>Usato per erba e pianeta, campiona texture UV e applica la stessa logica luminosa generale, mantenendo coerenza tra gli oggetti.</p>
+
+<h3>10.2.1 Gestione UV e coerenza texture</h3>
+<p>Nel parser OBJ la coordinata V viene invertita quando necessario per allineare l'origine UV del formato OBJ con il comportamento atteso nello shader WebGL. Questo evita texture capovolte.</p>
+
+<h3>10.3 Shader emissivo</h3>
+<p>Sole e luna usano colore emissivo diretto: scelta semplice e efficace per comunicare sorgenti luminose in scena.</p>
+
+<h3>10.4 Ciclo giorno/notte</h3>
+<p>Un solo fattore diurno guida colore cielo e intensita luci. Questo semplifica il controllo artistico: cambi un parametro e l'atmosfera cambia in modo coerente.</p>
+
+<h3>10.4.1 Interpolazione graduale</h3>
+<p>Le transizioni non sono a soglia netta ma interpolate. In termini pratici: niente "scatti" tra giorno e notte, ma passaggi continui di colore e intensita luminosa.</p>
+
+<h2>11. Tutorial: gestione asset OBJ/MTL/texture</h2>
+<h3>11.1 Parsing OBJ/MTL</h3>
+<p>Il parser supporta vertici, normali, UV, facce e materiali. Le facce non triangolari vengono triangolate per essere compatibili con il rendering a triangoli.</p>
+
+<h3>11.1.1 Gestione indici OBJ</h3>
+<p>Il formato OBJ ammette indici negativi (relativi alla fine della lista). Il parser li converte in indici assoluti prima di espandere i vertici nei buffer finali.</p>
+
+<h3>11.2 Texture loading</h3>
+<p>Le immagini vengono caricate in modo asincrono, inviate alla GPU e preparate con mipmap per migliorare la resa a distanza.</p>
+
+<h3>11.2.1 Perche le mipmap migliorano la qualita</h3>
+<p>Quando un oggetto e lontano, pochi pixel schermo devono rappresentare aree grandi di texture. Le mipmap forniscono versioni a risoluzione ridotta e riducono aliasing e flicker.</p>
+
+<h3>11.3 Pianeta distante</h3>
+<p>Il pianeta e una sfera procedurale con UV, texture dedicata e rotazione lenta. Serve a dare profondita e personalita allo sfondo.</p>
+
+<h2>12. Scelte tecniche e motivazioni</h2>
+<h3>12.1 Shader separati</h3>
+<p>Separare shader della creatura, shader texture ed emissivo riduce complessita locale e rende il codice piu manutenibile.</p>
+<h3>12.2 Stati discreti + resa continua</h3>
+<p>Fame e umore sono discreti per chiarezza ludica; la resa visiva e continua (scala e tint shader) per mantenere fluidita percettiva.</p>
+<h3>12.3 Parser custom OBJ/MTL</h3>
+<p>Parsing custom per avere controllo completo del formato supportato e comprendere il passaggio dati dall'asset alla GPU.</p>
+<h3>12.4 Illuminazione giorno/notte</h3>
+<p>Un unico fattore diurno guida cielo e luci: scelta coerente e facile da tarare artisticamente.</p>
+
+<h2>13. Particolarita del progetto</h2>
+<ul>
+<li>Creatura con feedback emotivo direttamente nello shader.</li>
+<li>Animazione idle procedurale (bobbing + breathing).</li>
+<li>Sole e luna come sfere primitive emissive.</li>
+<li>Pianeta distante texturizzato (pianetarosmarino.jpeg).</li>
+<li>Controlli multipli: UI, touch, tastiera, GUI.</li>
+</ul>
+
+<h2>14. Prestazioni e robustezza</h2>
+<p>Il progetto mantiene buone prestazioni grazie a buffer statici, numero contenuto di draw call e geometrie semplici per elementi secondari. La robustezza e aumentata da gestione errori in init e fallback del contesto WebGL.</p>
+
+<h3>14.1 Ottimizzazioni gia presenti</h3>
+<ul>
+<li>Buffer creati una volta e riusati a ogni frame.</li>
+<li>Shader specializzati invece di uno shader monolitico.</li>
+<li>Mipmap per ridurre aliasing su texture lontane.</li>
+</ul>
+
+<h3>14.2 Limiti noti</h3>
+<ul>
+<li>Alcune location di uniform/attributi possono essere cachate meglio.</li>
+<li>Il file principale e lungo e richiede disciplina nel mantenimento.</li>
+</ul>
+
+<h3>14.3 Compromessi consapevoli</h3>
+<p>Il progetto privilegia chiarezza didattica rispetto alla micro-ottimizzazione estrema. Alcune scelte (es. codice esplicito e ripetizioni controllate) sono volute per rendere i passaggi piu comprensibili a chi studia la pipeline.</p>
+
+<h2>15. Strategia di debug e validazione</h2>
+<ol>
+<li>Controllo caricamento asset e assenza errori fetch.</li>
+<li>Verifica compilazione shader e link programmi.</li>
+<li>Controllo logico di fame/umore con test temporali.</li>
+<li>Verifica visuale del ciclo giorno/notte completo.</li>
+<li>Controllo input su desktop e touch.</li>
+</ol>
+<p>La validazione e stata fatta sia in termini funzionali (cosa fa il gioco) sia in termini grafici (cosa si vede a schermo).</p>
+
+<h3>15.1 Checklist tecnica consigliata</h3>
+<ol>
+<li>Se schermo nero: verificare compile/link shader e path asset.</li>
+<li>Se modello deformato: controllare stride, size e ordine attributi.</li>
+<li>Se luce errata: verificare normali e spazio di riferimento.</li>
+<li>Se texture errata: controllare UV, flip V e binding texture unit.</li>
+<li>Se animazione scattosa: controllare dt, loop e carico draw/frame.</li>
+</ol>
+
+<h2>16. Miglioramenti consigliati</h2>
+<ol>
+<li>Separare il codice in piu file (math, renderer, gameplay, loader).</li>
+<li>Localizzazione completa in italiano di tutti i testi UI.</li>
+<li>Salvataggio stato in LocalStorage.</li>
+<li>Aggiunta audio ed eventi di feedback.</li>
+<li>Piccolo sistema di test automatici sul parser OBJ/MTL.</li>
+</ol>
+
+<h2>17. Conclusioni</h2>
+<p>Il risultato e un'applicazione 3D completa, didatticamente solida e coerente con gli obiettivi. Le scelte architetturali mostrano un equilibrio tra semplicita, controllo tecnico e qualita visiva, con una base facilmente estendibile per evoluzioni future.</p>
+</main>
+</body>
+</html>
